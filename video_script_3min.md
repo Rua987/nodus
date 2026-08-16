@@ -84,29 +84,32 @@ then the sign-test table — plan better 27 · plan worse 11 · p = 0.0139.
 
 ## Segment 5 — 2:20 → 2:45 · "Grafana Cloud"
 
-**Visual** : the Grafana dashboard; annotations pop in one by one, tagged
-`nodus:task`, `nodus:plan`, `nodus:tool_call`, `nodus:tool_result`,
-`nodus:result`.
+**Visual** : split screen. Left: the demo timeline from segment 3, but as the
+raw event stream — `task → plan → tool_call → tool_result → result`, each line
+carrying its `kind` tag (`nodus:task`, `nodus:plan`, …). Right: the wiring —
+`NODUS_GRAFANA=mcp` → the `mcp-grafana` server → a `create_annotation` call.
+Small overlay card: "every event → a tagged Grafana Cloud annotation · add
+`GRAFANA_URL` + a service-account token to make it live".
 
-**Narration** (≈ 62 words):
-> Nodus activates Grafana Cloud through the official MCP server. Every run
-> streams task, plan, tool calls, and results as tagged annotations — so you
-> can replay any agent session, correlate it with system metrics, and audit
-> exactly what the agent did, and why. That's the observability layer running
-> live in this dashboard, powered by our Grafana Cloud integration.
+**Narration** (≈ 61 words):
+> Every run produces this exact event stream — task, plan, every tool call and
+> result, tagged and timestamped. Nodus activates Grafana Cloud through the
+> official MCP server: each event becomes a tagged annotation, so a session is
+> replayable, correlatable, auditable. Point it at your Grafana with a
+> service-account token, and the stream lands live in your dashboard.
 
 ---
 
 ## Segment 6 — 2:45 → 3:00 · "Close"
 
 **Visual** : repo card `github.com/Rua987/nodus`, the README headline
-("119/120 · 99%"), a test run ending `910 passed`.
+("119/120 · 99%"), a test run ending `921 passed`.
 
 **Narration** (≈ 53 words):
-> Nodus is open source. Nine hundred and ten tests passing, and a checkpoint
-> you can drop in and run on a laptop CPU. If you want your agent to plan for
-> free — and to watch every step it takes — clone the repo, and let it think.
-> Thank you.
+> Nodus is open source. Nine hundred and twenty-one tests passing, and a
+> checkpoint you can drop in and run on a laptop CPU. If you want your agent to
+> plan for free — and to watch every step it takes — clone the repo, and let it
+> think. Thank you.
 
 ---
 
@@ -118,8 +121,8 @@ then the sign-test table — plan better 27 · plan worse 11 · p = 0.0139.
 | 0:25 | split screen: task → model card → plan | Segment 2 |
 | 0:55 | live `demo_agentic_cinema.py` timeline | Segment 3 |
 | 1:45 | metric cards: 99% then p=0.0139 table | Segment 4 |
-| 2:20 | Grafana dashboard annotations streaming | Segment 5 |
-| 2:45 | repo card + `910 passed` | Segment 6 |
+| 2:20 | event stream → Grafana MCP mapping (split screen) | Segment 5 |
+| 2:45 | repo card + `921 passed` | Segment 6 |
 
 **Production notes**
 - Record at 1080p, 30 fps; keep a 1–2 s hold on every visual before narration

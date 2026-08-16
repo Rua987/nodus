@@ -71,10 +71,11 @@ timeline.
 - **The harness** — ReAct loop that fills arguments, dispatches the 8 native
   tools, and verifies each result. Guardrails fix the model's systematic
   failure classes (superfluous grep, bash-as-write, missing final write).
-- **The observability** — Grafana Cloud MCP server (`mcp-grafana`) launched via
-  `uvx`; each normalized event becomes a `create_annotation` call. MCP failure
-  is never fatal to a run (silent fallback + counter).
-- **The validation** — 910 passing tests, plus a fresh 120-task holdout with
+- **The observability** — Grafana Cloud MCP server (`mcp-grafana`) launched
+  automatically (pip console script → `uvx` → `npx`); each normalized event
+  becomes a `create_annotation` call. MCP failure is never fatal to a run
+  (silent fallback + counter).
+- **The validation** — 921 passing tests, plus a fresh 120-task holdout with
   zero entity overlap with any training corpus.
 
 ## Challenges we ran into
@@ -97,7 +98,7 @@ timeline.
   length.
 - **A 30-second demo with zero dependencies** that nonetheless uses the real
   324M model when the checkpoint is present.
-- **910 tests passing** across the harness, the planner bridge, the guardrails,
+- **921 tests passing** across the harness, the planner bridge, the guardrails,
   and the Grafana sink.
 
 ## What we learned
@@ -126,8 +127,8 @@ GitHub · Ollama (optional executor)
 
 - GitHub: https://github.com/Rua987/nodus
 - Demo video: [PLACEHOLDER: YouTube/Grafana share link]
-- Devpost gallery image: [PLACEHOLDER: screenshot of the demo timeline or the
-  Grafana dashboard with annotations]
+- Devpost gallery image: [PLACEHOLDER: screenshot of the demo timeline with
+  its annotations (pas de Grafana live — pas de compte)]
 
 ---
 
