@@ -898,6 +898,42 @@ class TestRunAgent:
         out = capsys.readouterr().out
         assert "CONTINUATION" in out
 
+    @patch("linus_agent.dispatch_tool")
+    @patch("linus_agent._chat")
+    def test_telemetry_emits_full_event_stream(self, mock_chat, mock_dispatch):
+        """Le sink Grafana reçoit task → plan → tool_call → tool_result → result."""
+        from linus_grafana import GrafanaSink
+
+        mock_chat.side_effect = [
+            _msg(tool_calls=[
+                _tc("bash", {"command": "echo hi"}, call_id="call_1"),
+                _tc("bash", {"command": "echo done"}, call_id="call_2"),
+            ]),
+            _msg(content="Done"),
+        ]
+        mock_dispatch.return_value = ToolResult(success=True, output="hi")
+        sink = GrafanaSink(mode="mock")
+        result = run_agent(
+            "run echo hi then stop",   # connecteur séquentiel → needs_planning=True
+            plan=True,
+            plan_source="linus",
+            plan_names=["bash", "bash"],   # 2 steps estimés (then) → pas d'anti-shortcut
+            plan_slotfill=False,   # évite un appel _chat du slot-fill
+            telemetry=sink,
+        )
+        assert result.answer == "Done"
+        kinds = [e["kind"] for e in sink.events]
+        assert kinds[0] == "task"
+        assert "plan" in kinds
+        assert kinds[-1] == "result"
+        # le plan statique injecté
+        plan_evt = next(e for e in sink.events if e["kind"] == "plan")
+        assert plan_evt["names"] == ["bash", "bash"]
+        # les tool_call + tool_result apparaissent
+        assert sum(1 for e in sink.events if e["kind"] == "tool_call") == 2
+        assert sum(1 for e in sink.events if e["kind"] == "tool_result") == 2
+        sink.close()
+
 
 # ── run_agent memory integration ──────────────────────────────────────────────
 

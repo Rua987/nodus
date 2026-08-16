@@ -793,6 +793,7 @@ def _prepare_run(
     plan_source: str = "cloud",
     plan_slotfill: bool = True,
     plan_names: Optional[list] = None,
+    telemetry=None,  # sink Grafana (duck-typed: record(kind, **fields)),
 ) -> RunContext:
     """
     Construit le system prompt enrichi et le contexte d'exécution.
@@ -810,6 +811,13 @@ def _prepare_run(
     Returns:
         RunContext prêt à alimenter la boucle ReAct.
     """
+    if telemetry is not None:
+        telemetry.record(
+            "task",
+            task=task,
+            model=model,
+            plan_source=(plan_source or "cloud").lower(),
+        )
     system = _SYSTEM_PROMPT
     if cwd:
         system += f"\n\nCurrent working directory: {cwd}"
@@ -954,6 +962,13 @@ def _prepare_run(
                     )
                 system += plan_block
                 used_linus = True
+                if telemetry is not None:
+                    telemetry.record(
+                        "plan",
+                        source="linus",
+                        names=list(names),
+                        steps=len(names),
+                    )
             elif verbose:
                 print("[agent] plan source=linus invalid/unavailable → fallback cloud")
             # 8 Go : Liberer LINUS avant la boucle executeur Ollama
@@ -974,6 +989,12 @@ def _prepare_run(
                 system += plan_block
                 if verbose:
                     print(f"[agent] plan source=cloud: {len(plan_steps)} steps")
+                if telemetry is not None:
+                    telemetry.record(
+                        "plan",
+                        source="cloud",
+                        steps=len(plan_steps),
+                    )
 
     # Régime adaptatif backend : cloud serré (sas de transition), local lâche.
     # Profil-conscient : les profils LOURDS EN LECTURE (audit/recherche) ont un
@@ -1122,6 +1143,7 @@ def run_agent(
     plan_source: str = "cloud",
     plan_slotfill: bool = True,
     plan_names: Optional[list] = None,
+    telemetry=None,  # sink Grafana (duck-typed: record(kind, **fields)),
 ) -> AgentResult:
     """
     Lance la boucle ReAct LINUS sur une tâche.
@@ -1195,7 +1217,7 @@ def run_agent(
             task, cwd, model, verbose, max_rounds, memory, memory_path,
             plan, profile, reflect, skills, verify, playbook, knowledge, oracle,
             mcp_bridge=mcp_bridge, text_tools=text_tools, plan_source=plan_source,
-            plan_slotfill=plan_slotfill, plan_names=plan_names,
+            plan_slotfill=plan_slotfill, plan_names=plan_names, telemetry=telemetry,
         )
     finally:
         if mcp_bridge is not None:
@@ -1223,6 +1245,7 @@ def _run_agent_loop(
     plan_source: str = "cloud",
     plan_slotfill: bool = True,
     plan_names: Optional[list] = None,
+    telemetry=None,  # sink Grafana (duck-typed: record(kind, **fields)),
 ) -> AgentResult:
     """Corps de la boucle ReAct (extrait pour lifecycle MCP)."""
     ctx = _prepare_run(
@@ -1231,6 +1254,7 @@ def _run_agent_loop(
         plan_source=plan_source,
         plan_slotfill=plan_slotfill,
         plan_names=plan_names,
+        telemetry=telemetry,
     )
     mem_path       = ctx.mem_path
     lessons_path   = ctx.lessons_path
@@ -1619,6 +1643,15 @@ def _run_agent_loop(
                 if verbose and kept:
                     print(f"[agent] finding saved to knowledge → {knowledge_path}")
 
+            if telemetry is not None:
+                telemetry.record(
+                    "result",
+                    answer=str(answer)[:500],
+                    tool_calls=total_tool_calls,
+                    rounds=round_num,
+                    stopped_reason=stopped_reason,
+                )
+
             return AgentResult(
                 answer=answer,
                 tool_calls=total_tool_calls,
@@ -1666,6 +1699,12 @@ def _run_agent_loop(
                 args_preview = json.dumps(args, ensure_ascii=False)[:120]
                 print(f"[agent] TOOL {name}({args_preview})")
 
+            if telemetry is not None:
+                telemetry.record(
+                    "tool_call",
+                    name=name,
+                    args=json.dumps(args, ensure_ascii=False)[:400],
+                )
             dup_path = read_tracker.check_duplicate_read(args) if name == "read_file" else None
             if dup_path:
                 result = ToolResult(
@@ -1677,6 +1716,13 @@ def _run_agent_loop(
                 result = _agent_dispatch_tool(name, args, cwd=cwd, mcp_bridge=mcp_bridge)
             total_tool_calls += 1
             tool_path.append(name)
+            if telemetry is not None:
+                telemetry.record(
+                    "tool_result",
+                    name=name,
+                    success=bool(result.success),
+                    output=result.to_str()[:300],
+                )
 
             # Suivi lecture/écriture pour le régime adaptatif (anti-paralysie cloud)
             if name in WRITE_TOOLS:
@@ -1811,6 +1857,15 @@ def _run_agent_loop(
         verbose,
         task,
     )
+
+    if telemetry is not None:
+        telemetry.record(
+            "result",
+            answer=str(answer)[:500],
+            tool_calls=total_tool_calls,
+            rounds=max_rounds,
+            stopped_reason="max_rounds",
+        )
 
     return AgentResult(
         answer=answer,
