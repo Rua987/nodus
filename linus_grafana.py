@@ -9,7 +9,9 @@ Deux modes :
   - mock (défaut) : aucun token requis, événements collectés en mémoire + JSONL
     (déterministe, testé hors-ligne, idéal pour la démo de développement).
   - mcp (live)    : se connecte à `mcp-grafana` (stdio) via `McpBridge` et
-    mappe chaque événement sur `grafana.create_annotation` (tags = nodus,kind).
+    mappe chaque événement sur `create_annotation` du serveur `mcp-grafana`
+    (tags = nodus,kind). Les tools sont namespacés par le nom auto-déclaré du
+    serveur (`mcp-grafana.*`), pas par la clé de config mcp.json (`grafana.*`).
 
 Le planificateur Nodus garde son vocabulaire de 8 outils natifs ; Grafana est la
 couche *observabilité* du harnais : le dashboard devient le « scope » de l'agent.
@@ -35,6 +37,36 @@ _TAGS = ["nodus", "agentic-cinema"]
 def _now() -> str:
     """Horodatage ISO-8601 UTC."""
     return datetime.now(timezone.utc).isoformat(timespec="milliseconds")
+
+
+def mcp_grafana_command(override: Optional[str] = None):
+    """Résout la commande de lancement du serveur `mcp-grafana`.
+
+    Retourne (command, args) ou None si aucun lanceur n'est disponible.
+    Ordre de résolution :
+      1) override explicite (`NODUS_GRAFANA_SERVER` ou argument) ;
+      2) console script pip `mcp-grafana` (même paquet PyPI que uvx ; log sur
+         stderr → transport stdio propre) ;
+      3) `uvx mcp-grafana` (officiel, PyPI) ;
+      4) `npx -y @leval/mcp-grafana` (npm — log sur stdout, transport pollué :
+         dernier recours).
+    Le premier token est résolu via `shutil.which` : sur Windows, `npx.CMD`
+    ne se lance pas par nom nu (WinError 2) mais par chemin complet.
+    """
+    import shlex
+    import shutil
+
+    spec = (override or os.environ.get("NODUS_GRAFANA_SERVER") or "").strip()
+    if spec:
+        parts = shlex.split(spec)
+        if parts:
+            resolved = shutil.which(parts[0]) or parts[0]
+            return resolved, parts[1:]
+    for name, args in (("mcp-grafana", []), ("uvx", ["mcp-grafana"]), ("npx", ["-y", "@leval/mcp-grafana"])):
+        resolved = shutil.which(name)
+        if resolved:
+            return resolved, args
+    return None
 
 
 class GrafanaSink:
@@ -88,17 +120,27 @@ class GrafanaSink:
             self.mode = "mock"
             return
 
-        # mcp-grafana se lance via uvx (officiel) — config stdio à la volée.
-        # Sur Windows, uvx.exe peut être préféré ; on laisse PATH décider.
+        # mcp-grafana : uvx (officiel) puis npx (npm) — résolu en chemin
+        # complet via shutil.which (sur Windows, npx.CMD exige le chemin).
         import tempfile
         import uuid
         import json as _json
 
+        cmd = mcp_grafana_command()
+        if cmd is None:
+            self.errors.append(
+                "mcp-grafana launcher not found: install uvx or node/npx, or set "
+                "NODUS_GRAFANA_SERVER. Falling back to mock."
+            )
+            self.mode = "mock"
+            return
+        command, args = cmd
+
         config = {
             "mcpServers": {
                 "grafana": {
-                    "command": "uvx",
-                    "args": ["mcp-grafana"],
+                    "command": command,
+                    "args": args,
                     "env": {
                         "GRAFANA_URL": url,
                         "GRAFANA_SERVICE_ACCOUNT_TOKEN": token,
@@ -120,6 +162,23 @@ class GrafanaSink:
             return
         self._bridge = bridge
         self.mode = "mcp"
+
+    def _resolve_tool(self, bare_name: str) -> Optional[str]:
+        """Nom qualifié réel d'un outil : le serveur s'auto-nomme
+        ('mcp-grafana.create_annotation'), pas la clé de config mcp.json
+        ('grafana.create_annotation'). Retourne None si l'outil est absent."""
+        registry = getattr(self._bridge, "registry", None)
+        if registry is None:
+            return None
+        entries = getattr(registry, "entries", None) or {}
+        exact = f"mcp-grafana.{bare_name}"
+        if exact in entries:
+            return exact
+        suffix = "." + bare_name
+        for qname in entries:
+            if qname.endswith(suffix):
+                return qname
+        return None
 
     # ── API publique ───────────────────────────────────────────────────────
 
@@ -143,9 +202,16 @@ class GrafanaSink:
     def _push_annotation(self, evt: Dict[str, Any]) -> None:
         """Mode live : crée une annotation Grafana à partir d'un événement."""
         try:
+            qname = self._resolve_tool("create_annotation")
+            if qname is None:
+                self.errors.append(
+                    "create_annotation: mcp-grafana tool not registered "
+                    "(server down?)"
+                )
+                return
             text = _annotation_text(evt)
             self._bridge.call(
-                "grafana.create_annotation",
+                qname,
                 {"text": text, "tags": _TAGS + [f"nodus:{evt['kind']}"]},
             )
         except Exception as exc:  # jamais fatal
@@ -155,12 +221,18 @@ class GrafanaSink:
         """Mode live : liste les dashboards (read — bon pour la démo)."""
         if self.mode != "mcp" or self._bridge is None:
             return {"mode": self.mode, "error": "search_dashboards requires mcp mode"}
-        return self._bridge.call("grafana.search_dashboards", {"query": query})
+        qname = self._resolve_tool("search_dashboards")
+        if qname is None:
+            return {"mode": self.mode, "error": "search_dashboards tool not registered"}
+        return self._bridge.call(qname, {"query": query})
 
     def dashboard_summary(self, uid: str) -> Any:
         if self.mode != "mcp" or self._bridge is None:
             return {"mode": self.mode, "error": "dashboard_summary requires mcp mode"}
-        return self._bridge.call("grafana.get_dashboard_summary", {"uid": uid})
+        qname = self._resolve_tool("get_dashboard_summary")
+        if qname is None:
+            return {"mode": self.mode, "error": "dashboard_summary tool not registered"}
+        return self._bridge.call(qname, {"uid": uid})
 
     def summary(self) -> str:
         """Vue humaine (terminal / vidéo) : timeline compacte du run."""

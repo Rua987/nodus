@@ -3,13 +3,15 @@
 
 import json
 import os
+import shutil
 import sys
 
 import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from linus_grafana import GrafanaSink, sink_from_env, EVENT_KINDS  # noqa: E402
+import linus_grafana as lg  # noqa: E402
+from linus_grafana import GrafanaSink, sink_from_env, EVENT_KINDS, mcp_grafana_command  # noqa: E402
 
 
 def test_mock_record_kind_validation():
@@ -96,3 +98,125 @@ def test_context_manager_closes(tmp_path):
         sink.record("plan", source="cloud", steps=3)
     # __exit__ close() ne doit pas lever
     assert path.exists()
+
+
+# ── Lanceur mcp-grafana (uvx / npx / override) ────────────────────────────
+
+def test_mcp_grafana_command_override():
+    cmd = mcp_grafana_command(override="python server.py --port 9000")
+    assert cmd[0]  # premier token résolu en chemin complet (shutil.which)
+    assert cmd[1] == ["server.py", "--port", "9000"]
+
+
+def test_mcp_grafana_command_env_override(monkeypatch):
+    monkeypatch.setenv("NODUS_GRAFANA_SERVER", "npx -y @leval/mcp-grafana")
+    monkeypatch.setattr(shutil, "which", lambda name: None)
+    cmd = mcp_grafana_command()
+    assert cmd == ("npx", ["-y", "@leval/mcp-grafana"])
+
+
+def test_mcp_grafana_command_prefers_pip_console_script(monkeypatch):
+    # console script pip `mcp-grafana` (log stderr → transport stdio propre)
+    # prioritaire sur uvx puis npx.
+    monkeypatch.delenv("NODUS_GRAFANA_SERVER", raising=False)
+    monkeypatch.setattr(
+        shutil, "which",
+        lambda name: "mcp-grafana.exe" if name == "mcp-grafana" else None,
+    )
+    cmd = mcp_grafana_command()
+    assert cmd == ("mcp-grafana.exe", [])
+
+
+def test_mcp_grafana_command_prefers_uvx(monkeypatch):
+    monkeypatch.delenv("NODUS_GRAFANA_SERVER", raising=False)
+    monkeypatch.setattr(
+        shutil, "which",
+        lambda name: "uvx.exe" if name == "uvx" else None,
+    )
+    cmd = mcp_grafana_command()
+    assert cmd == ("uvx.exe", ["mcp-grafana"])
+
+
+def test_mcp_grafana_command_npx_fallback_resolves_path(monkeypatch):
+    monkeypatch.delenv("NODUS_GRAFANA_SERVER", raising=False)
+    monkeypatch.setattr(
+        shutil, "which",
+        lambda name: r"C:\Program Files\nodejs\npx.CMD" if name == "npx" else None,
+    )
+    cmd = mcp_grafana_command()
+    # chemin complet requis (npx.CMD ne se lance pas par nom nu sur Windows)
+    assert cmd == (r"C:\Program Files\nodejs\npx.CMD", ["-y", "@leval/mcp-grafana"])
+
+
+def test_mcp_grafana_command_none_without_launcher(monkeypatch):
+    monkeypatch.delenv("NODUS_GRAFANA_SERVER", raising=False)
+    monkeypatch.setattr(shutil, "which", lambda name: None)
+    assert mcp_grafana_command() is None
+
+
+def test_connect_mcp_falls_back_to_mock_without_launcher(monkeypatch):
+    monkeypatch.setattr(lg, "mcp_grafana_command", lambda *a, **k: None)
+    sink = GrafanaSink(mode="mcp", url="https://x.grafana.net", token="glsa_dummy")
+    assert sink.mode == "mock"
+    assert any("launcher not found" in e for e in sink.errors)
+    sink.close()
+
+
+# ── Résolution du préfixe réel (mcp-grafana.*, pas la clé config grafana) ─────
+
+class _FakeRegistry:
+    def __init__(self, entries):
+        self.entries = entries
+
+
+class _FakeBridge:
+    def __init__(self, entries):
+        self.registry = _FakeRegistry(entries)
+        self.calls = []
+
+    def call(self, qname, args):
+        self.calls.append((qname, args))
+
+
+def test_sink_resolves_mcp_grafana_prefix():
+    sink = GrafanaSink(mode="mock")
+    sink._bridge = _FakeBridge(
+        {"mcp-grafana.create_annotation": object(), "mcp-grafana.search_dashboards": object()}
+    )
+    assert sink._resolve_tool("create_annotation") == "mcp-grafana.create_annotation"
+    assert sink._resolve_tool("search_dashboards") == "mcp-grafana.search_dashboards"
+    assert sink._resolve_tool("missing_tool") is None
+    sink.close()
+
+
+def test_push_annotation_uses_resolved_qualified_name():
+    bridge = _FakeBridge({"mcp-grafana.create_annotation": object()})
+    sink = GrafanaSink(mode="mock")
+    sink._bridge = bridge
+    sink.mode = "mcp"
+    sink.record("plan", source="linus", names=["read_file"])
+    assert bridge.calls and bridge.calls[0][0] == "mcp-grafana.create_annotation"
+    payload = bridge.calls[0][1]
+    assert "plan" in payload["tags"][-1]
+    assert "read_file" in payload["text"]
+    sink.close()
+
+
+def test_push_annotation_records_error_when_tool_missing():
+    sink = GrafanaSink(mode="mock")
+    sink._bridge = _FakeBridge({})
+    sink.mode = "mcp"
+    sink.record("result", answer="done")
+    assert any("not registered" in e for e in sink.errors)
+    sink.close()
+
+
+def test_search_dashboards_resolves_prefix():
+    bridge = _FakeBridge({"mcp-grafana.search_dashboards": object()})
+    sink = GrafanaSink(mode="mock")
+    sink._bridge = bridge
+    sink.mode = "mcp"
+    sink.search_dashboards("health")
+    assert bridge.calls and bridge.calls[0][0] == "mcp-grafana.search_dashboards"
+    assert bridge.calls[0][1] == {"query": "health"}
+    sink.close()

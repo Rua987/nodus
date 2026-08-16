@@ -57,7 +57,8 @@ result — into a Grafana dashboard as live annotations:
   JSONL — perfect for the video / CI.
 - **live mode**: `NODUS_GRAFANA=mcp` + `GRAFANA_URL` + `GRAFANA_SERVICE_ACCOUNT_TOKEN`
   (Grafana Cloud free tier, service account `glsa_…`). Each event becomes a
-  `grafana.create_annotation` call through the official `mcp-grafana` server.
+  `mcp-grafana.create_annotation` call through the official `mcp-grafana` server
+  (tools are namespaced by the server's self-reported name, not the config key).
 
 ---
 
@@ -115,8 +116,12 @@ timeline, `NODUS_GRAFANA=mcp` pushes live annotations to Grafana Cloud:
 1. Create a free account at [grafana.com](https://grafana.com/cloud/).
 2. **Administration → Service accounts** → add a token (`glsa_…`) with
    `dashboards:write` (annotations).
-3. Run with the env vars above; the harness starts `mcp-grafana` (via `uvx`)
-   automatically and calls `create_annotation` for each event.
+3. Run with the env vars above; the harness starts `mcp-grafana` automatically —
+   the console script from `pip install mcp-grafana` (logs to stderr = clean
+   stdio transport), else `uvx mcp-grafana`, else `npx -y @leval/mcp-grafana`
+   (npm, logs to stdout — last resort). Override the launcher with
+   `NODUS_GRAFANA_SERVER="mcp-grafana"` (or any command string).
+   Each event calls `create_annotation`.
 
 ---
 
