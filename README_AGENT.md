@@ -281,13 +281,11 @@ python -m pytest tests/ \
   --ignore tests/test_climbmix.py \
   --ignore tests/test_worldmodel_bridge.py \
   --ignore tests/test_nodus_tools.py \
-  --ignore-glob "tests/test_spinoza*" \
   -q --tb=short
 ```
 
-Ces exclusions couvrent le planificateur/entraînement (torch) et les tests
-spinoza (`.so` natifs) — jamais la boucle agent/verify/slot-fill, qui reste
-100% testée sans torch. `test_nodus_tools.py` importe torch au module donc il
+Ces exclusions couvrent le planificateur/entraînement (torch) — jamais la
+boucle agent/verify/slot-fill, qui reste 100% testée sans torch. `test_nodus_tools.py` importe torch au module donc il
 n'est pas collectable sans torch ; `conftest.py` protège déjà
 `nodus_nanochat/__init__` de l'import torch.
 
