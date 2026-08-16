@@ -3,7 +3,7 @@
   "grammar": "json_array_of_tool_names",
   "parser": "bridge.parse_plan.parse_plan",
   "exact_policy": "label=valid AND names==gold (ordre compte); degraded=FAIL",
-  "checkpoint": "D:\\Sauvegardes_Linus_v3\\checkpoint_sft_plan_v5.pt",
+  "checkpoint": "D:\\Sauvegardes_Nodus_v3\\checkpoint_sft_plan_v5.pt",
   "checkpoint_source": "sft_plan_v5 (v2b->v5, corpus plan_v5 20k hard 0.60, ciblage des 12 echecs v4 dont brave->web_fetch)",
   "measured": {
     "holdout": "D:\\datasets\\plan\\plan_v3_holdout_fresh.json (n=120, inedit, jamais vu par aucun corpus)",
@@ -16,7 +16,7 @@
     "note": "v5 > v2b sur taches inedites (v2b+GF 109/120 91%) ; le holdout v2 contamine donnait une fausse egalite. Repromu 2026-08-15 apres preuve fresh."
   },
   "harness_contract": {
-    "args": "REMPLIS PAR LE HARNAIS — LINUS ne fournit que les noms",
+    "args": "REMPLIS PAR LE HARNAIS — NODUS ne fournit que les noms",
     "confiance": "plan = suggestion a verifier etape par etape, pas un ordre",
     "fallback": "si label!=valid ou plan absurde -> harnais planifie seul"
   },

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-🏛️ TEMPLE IAM - Tests anti-SSRF par redirection (linus_tools.tool_web_fetch)
+🏛️ TEMPLE IAM - Tests anti-SSRF par redirection (nodus_tools.tool_web_fetch)
 ⚡ GAP : la garde _is_blocked_url ne validait QUE l'URL initiale. Avec
    allow_redirects=True, un serveur public renvoyant 30x vers
    http://169.254.169.254/ (métadonnées cloud) ou http://127.0.0.1/ était
@@ -14,8 +14,8 @@ from unittest.mock import patch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import linus_tools  # noqa: E402
-from linus_tools import tool_web_fetch, MAX_FETCH_REDIRECTS  # noqa: E402
+import nodus_tools  # noqa: E402
+from nodus_tools import tool_web_fetch, MAX_FETCH_REDIRECTS  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -79,8 +79,8 @@ def test_redirect_to_metadata_is_blocked():
         assert kwargs.get("allow_redirects") is False, "allow_redirects doit être False"
         return responses.pop(0)
 
-    with patch("linus_tools.socket.getaddrinfo", _allow_public_dns()), \
-         patch("linus_tools.requests.get", side_effect=fake_get):
+    with patch("nodus_tools.socket.getaddrinfo", _allow_public_dns()), \
+         patch("nodus_tools.requests.get", side_effect=fake_get):
         r = tool_web_fetch("http://evil.example.com/start")
 
     assert r.success is False
@@ -95,8 +95,8 @@ def test_redirect_to_loopback_is_blocked():
         assert "127.0.0.1" not in url, "garde SSRF contournée : requête loopback émise !"
         return FakeResp(status=301, location="http://127.0.0.1:8080/admin")
 
-    with patch("linus_tools.socket.getaddrinfo", _allow_public_dns()), \
-         patch("linus_tools.requests.get", side_effect=fake_get):
+    with patch("nodus_tools.socket.getaddrinfo", _allow_public_dns()), \
+         patch("nodus_tools.requests.get", side_effect=fake_get):
         r = tool_web_fetch("http://evil.example.com/start")
 
     assert r.success is False
@@ -118,8 +118,8 @@ def test_relative_redirect_resolved_and_revalidated():
         assert "169.254" not in url
         return seq.pop(0)
 
-    with patch("linus_tools.socket.getaddrinfo", _allow_public_dns()), \
-         patch("linus_tools.requests.get", side_effect=fake_get):
+    with patch("nodus_tools.socket.getaddrinfo", _allow_public_dns()), \
+         patch("nodus_tools.requests.get", side_effect=fake_get):
         r = tool_web_fetch("http://evil.example.com/start")
 
     assert r.success is False
@@ -134,8 +134,8 @@ def test_too_many_redirects():
         # boucle infinie entre hôtes publics
         return FakeResp(status=302, location="http://hop.example.com/loop")
 
-    with patch("linus_tools.socket.getaddrinfo", _allow_public_dns()), \
-         patch("linus_tools.requests.get", side_effect=fake_get):
+    with patch("nodus_tools.socket.getaddrinfo", _allow_public_dns()), \
+         patch("nodus_tools.requests.get", side_effect=fake_get):
         r = tool_web_fetch("http://good.example.com/start")
 
     assert r.success is False
@@ -154,8 +154,8 @@ def test_legitimate_public_redirect_succeeds():
     def fake_get(url, **kwargs):
         return seq.pop(0)
 
-    with patch("linus_tools.socket.getaddrinfo", _allow_public_dns()), \
-         patch("linus_tools.requests.get", side_effect=fake_get):
+    with patch("nodus_tools.socket.getaddrinfo", _allow_public_dns()), \
+         patch("nodus_tools.requests.get", side_effect=fake_get):
         r = tool_web_fetch("http://good.example.com/start")
 
     assert r.success is True, r.error
@@ -169,8 +169,8 @@ def test_redirect_without_location_is_refused():
     def fake_get(url, **kwargs):
         return FakeResp(status=302, location="")  # is_redirect True, Location vide
 
-    with patch("linus_tools.socket.getaddrinfo", _allow_public_dns()), \
-         patch("linus_tools.requests.get", side_effect=fake_get):
+    with patch("nodus_tools.socket.getaddrinfo", _allow_public_dns()), \
+         patch("nodus_tools.requests.get", side_effect=fake_get):
         r = tool_web_fetch("http://good.example.com/start")
 
     assert r.success is False
@@ -184,8 +184,8 @@ def test_direct_200_no_redirect():
     def fake_get(url, **kwargs):
         return FakeResp(status=200, body=b"HELLO PUBLIC")
 
-    with patch("linus_tools.socket.getaddrinfo", _allow_public_dns()), \
-         patch("linus_tools.requests.get", side_effect=fake_get):
+    with patch("nodus_tools.socket.getaddrinfo", _allow_public_dns()), \
+         patch("nodus_tools.requests.get", side_effect=fake_get):
         r = tool_web_fetch("http://good.example.com/page")
 
     assert r.success is True, r.error
@@ -210,8 +210,8 @@ def test_dns_rebind_pins_ip_literal():
         resp = FakeResp(status=200, body=b"PINNED OK")
         return resp
 
-    with patch("linus_tools.socket.getaddrinfo", side_effect=rebind_gai), \
-         patch("linus_tools.requests.get", side_effect=fake_get):
+    with patch("nodus_tools.socket.getaddrinfo", side_effect=rebind_gai), \
+         patch("nodus_tools.requests.get", side_effect=fake_get):
         r = tool_web_fetch("http://rebind.evil.example/secret")
 
     assert r.success is True, r.error

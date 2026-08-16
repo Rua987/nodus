@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Oracle de parse pour le pont PLAN (LINUS planificateur).
+Oracle de parse pour le pont PLAN (NODUS planificateur).
 
-Contrat : LINUS recoit `plan_prompt.txt` (placeholder {TASK}) et repond avec
+Contrat : NODUS recoit `plan_prompt.txt` (placeholder {TASK}) et repond avec
 UNIQUEMENT un JSON array de noms d'outils, ex. ["glob","read_file"].
-Le harnais remplit les arguments de chaque etape lui-meme (LINUS ne fournit
+Le harnais remplit les arguments de chaque etape lui-meme (NODUS ne fournit
 PAS les args — capacite copie exacte mesuree insuffisante, cf. CYCLES_HISTORY
 toolcalls v1..v4, plafond 11/120).
 
@@ -142,7 +142,7 @@ def write_version() -> dict:
             "note": "v5 > v2b sur taches inedites (v2b+GF 109/120 91%) ; le holdout v2 contamine donnait une fausse egalite. Repromu 2026-08-15 apres preuve fresh.",
         },
         "harness_contract": {
-            "args": "REMPLIS PAR LE HARNAIS — LINUS ne fournit que les noms",
+            "args": "REMPLIS PAR LE HARNAIS — NODUS ne fournit que les noms",
             "confiance": "plan = suggestion a verifier etape par etape, pas un ordre",
             "fallback": "si label!=valid ou plan absurde -> harnais planifie seul",
         },

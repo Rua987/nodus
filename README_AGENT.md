@@ -1,4 +1,4 @@
-# 🤖 LINUS Agent — ReAct multi-couches
+# 🤖 NODUS Agent — ReAct multi-couches
 
 > Agent de codage ReAct (Think → Tool → Observe → …) bâti sur Ollama **et** des
 > backends API (Claude, DeepSeek V4, OpenRouter free). 22 modules cœur, 100% de
@@ -14,24 +14,24 @@ ne saute pas d'étape, et ne certifie pas un succès qu'il n'a pas vérifié.
 **Ollama est un backend parmi d'autres, pas un prérequis.** Si tu as une clé API
 (OpenRouter / DeepSeek / Anthropic), tu peux lancer une tâche directement sans
 rien installer. Ollama ne sert que pour les modèles locaux (`qwen3.5:2b`, …) —
-détecté automatiquement par `linus_backends.detect_backend` selon le nom de modèle.
+détecté automatiquement par `nodus_backends.detect_backend` selon le nom de modèle.
 
 ```bash
 # Option 1 — backend cloud (aucune install locale)
-python linus_agent.py "compte les def dans linus_tools.py" --verbose \
+python nodus_agent.py "compte les def dans nodus_tools.py" --verbose \
   --model openrouter/z-ai/glm-5.2
 
 # Option 2 — backend local (Ollama + un modèle tools-capable)
 ollama serve
 ollama pull qwen3.5:2b
-python linus_agent.py "compte les def dans linus_tools.py" --verbose
+python nodus_agent.py "compte les def dans nodus_tools.py" --verbose
 
 # Chat interactif
-python linus_chat.py
+python nodus_chat.py
 
 # Serveur HTTP (swarm + agent)
-python linus_swarm_server.py        # http://localhost:5789
-python linus_swarm_server.py 8080   # port custom
+python nodus_swarm_server.py        # http://localhost:5789
+python nodus_swarm_server.py 8080   # port custom
 ```
 
 ---
@@ -40,12 +40,12 @@ python linus_swarm_server.py 8080   # port custom
 
 ### CI automatique des rounds red-team
 
-Workflow GitHub Actions (racine du dépôt git, **pas** dans `linus_nanochat/`): `.github/workflows/linus-redteam.yml`
+Workflow GitHub Actions (racine du dépôt git, **pas** dans `nodus_nanochat/`): `.github/workflows/nodus-redteam.yml`
 
-- `working-directory: linus_nanochat` pour tous les steps Python
+- `working-directory: nodus_nanochat` pour tous les steps Python
 - `pip install -r requirements-ci.txt` (pytest, requests, numpy, Pillow — pas torch)
-- trigger `push`/`pull_request` limité aux chemins `linus_nanochat/**`
-- lance `tests/test_linus_oracle.py`
+- trigger `push`/`pull_request` limité aux chemins `nodus_nanochat/**`
+- lance `tests/test_nodus_oracle.py`
 - lance la **suite pytest complète sauf fichiers torch** (cf. section Tests & CI)
 - lance `e2e_redteam23.py`, `e2e_redteam24.py`, `e2e_redteam24_mutation.py`, `e2e_redteam25.py`
 - `verify_claims.py` (harnais inclus) : rejoue les gates déterministes ET refuse
@@ -60,7 +60,7 @@ python scripts/verify_claims.py --write     # rafraîchit dashboard + ledger dep
 ```
 
 Discipline empruntée à T3MP3ST : un chiffre qui ne se recalcule pas ne ship pas.
-Le script re-dérive le score `LINUS-RT-*`, régénère le dashboard et le compare
+Le script re-dérive le score `NODUS-RT-*`, régénère le dashboard et le compare
 à la copie commitée (périmé = échec), rejoue les harness déterministes + tests
 oracle, et écrit un **ledger** (`reports/redteam_ledger.json`) — une entrée de
 preuve par attaque (id, surface, statut, round, défense).
@@ -72,7 +72,7 @@ python scripts/redteam_dashboard.py --out reports/redteam_dashboard.md
 ```
 
 Le dashboard inclut:
-- score recalculable `LINUS-RT-84: 84/84 classified, 0 GAP, defense 54/54, 30 BOUND`
+- score recalculable `NODUS-RT-84: 84/84 classified, 0 GAP, defense 54/54, 30 BOUND`
 - couverture registre (`HOLDS/BOUND/GAP/TODO`)
 - répartition par surface d'attaque
 - pass rate par modèle (agrégé depuis `reports/*.md`)
@@ -91,42 +91,42 @@ Exécute une passe complète: round 29, mutation sanity, génération dashboard.
 
 | Module | Rôle | Fonctions clés |
 |---|---|---|
-| `linus_tools.py` | 8 outils (bash, file, grep, glob, web, brave) + gardes | `dispatch_tool`, `tool_bash`, `_confine`, `_validate_and_pin_url` |
-| `linus_agent.py` | Boucle ReAct + orchestration + classification erreurs backend | `run_agent`, `stream_agent`, `_classify_backend_error` |
-| `linus_backends.py` | Multi-backend Ollama/DeepSeek/Anthropic/OpenRouter | `detect_backend`, `chat_api` |
-| `linus_memory.py` | Mémoire persistante (+ stoïcienne) | `load_memory`, `append_memory_entry` |
-| `linus_chat.py` | REPL interactif | `chat_loop`, `parse_input` |
-| `linus_planner.py` | Planification des tâches complexes | `needs_planning`, `parse_plan` |
-| `linus_profiles.py` | Agents spécialisés + routeur (dont `security`/`research`) | `route_task`, `get_profile_prompt` |
-| `linus_reflect.py` | Leçons depuis la trace (réinjectées) | `analyze_run`, `merge_lessons` |
-| `linus_skills.py` | Compétences curées (méta-codage) | `select_skills`, `format_skills_for_prompt` |
-| `linus_verify.py` | Post-condition : fichiers ET commandes (exit 0) + anti-relecture | `extract_expected_files`, `verify_files`, `verify_commands`, `ReadPathTracker` |
-| `linus_acceptance.py` | Conformité à l'INTENTION : cas `assert` de l'humain éprouvés contre l'impl (verdict externe, dents = échouent si impl vidée) | `extract_acceptance_cases`, `plan_acceptance_check`, `acceptance_verdict`, `acceptance_challenge` |
-| `linus_oracle.py` | Vérification SÉMANTIQUE : les tests doivent rejeter le code cassé (mutation testing) | `generate_mutants`, `mutation_score`, `oracle_verdict`, `oracle_challenge` |
-| `linus_perceptual.py` | Vérification du MÉDIA (pixel) : un rendu correspond à une référence (SSIM) — avec self-test de dents | `image_similarity`, `mean_ssim`, `perceptual_verdict`, `perceptual_challenge` |
-| `linus_media.py` | Vérification du MÉDIA (structure) : propriétés ffprobe vs spec (durée/dim/codec/flux) — spec vide = vacueuse | `probe_media`, `media_properties`, `check_media`, `media_challenge` |
-| `linus_search.py` | AMPLIFICATION : best-of-N guidé par le vérificateur (récolte pass@k) | `best_of_n`, `expected_success` |
-| `linus_amplify.py` | Amplification opt-in câblée sur l'agent : N runs frais, garde le 1er CERTIFIÉ | `amplified_run`, `_verify_dir` |
-| `linus_falsify.py` | Reverse-LINUS : cherche un CONTRE-EXEMPLE exécuté (property-based/fuzz) — comble l'angle mort des cas fixes | `falsify`, `FalsifyResult` |
-| `linus_policy.py` | Régime adaptatif backend + profil : anti-paralysie, anti-thrash, read-paralysis, budget profil-conscient | `policy_for`, `should_force_write`, `should_refocus`, `should_stop_read_paralysis` |
-| `linus_knowledge.py` | Pont mémoire : découvertes rappelées par pertinence (flag `knowledge`) | `save_finding`, `recall_findings` |
-| `linus_redteam.py` | Registre VIVANT des attaques red-team (33, 0 GAP) | `REGISTRY`, `coverage_summary`, `parse_proposed_attacks` |
-| `linus_claim_check.py` | Pont SWARM→AGENT : extraire les affirmations falsifiables, bâtir leur vérif | `extract_claims`, `build_verify_task` |
-| `linus_selfredteam.py` | Boucle self-red-team : verdict ANCRÉ DANS LE CODE (jamais la parole de l'agent) | `build_attack_task`, `reconcile` |
+| `nodus_tools.py` | 8 outils (bash, file, grep, glob, web, brave) + gardes | `dispatch_tool`, `tool_bash`, `_confine`, `_validate_and_pin_url` |
+| `nodus_agent.py` | Boucle ReAct + orchestration + classification erreurs backend | `run_agent`, `stream_agent`, `_classify_backend_error` |
+| `nodus_backends.py` | Multi-backend Ollama/DeepSeek/Anthropic/OpenRouter | `detect_backend`, `chat_api` |
+| `nodus_memory.py` | Mémoire persistante (+ stoïcienne) | `load_memory`, `append_memory_entry` |
+| `nodus_chat.py` | REPL interactif | `chat_loop`, `parse_input` |
+| `nodus_planner.py` | Planification des tâches complexes | `needs_planning`, `parse_plan` |
+| `nodus_profiles.py` | Agents spécialisés + routeur (dont `security`/`research`) | `route_task`, `get_profile_prompt` |
+| `nodus_reflect.py` | Leçons depuis la trace (réinjectées) | `analyze_run`, `merge_lessons` |
+| `nodus_skills.py` | Compétences curées (méta-codage) | `select_skills`, `format_skills_for_prompt` |
+| `nodus_verify.py` | Post-condition : fichiers ET commandes (exit 0) + anti-relecture | `extract_expected_files`, `verify_files`, `verify_commands`, `ReadPathTracker` |
+| `nodus_acceptance.py` | Conformité à l'INTENTION : cas `assert` de l'humain éprouvés contre l'impl (verdict externe, dents = échouent si impl vidée) | `extract_acceptance_cases`, `plan_acceptance_check`, `acceptance_verdict`, `acceptance_challenge` |
+| `nodus_oracle.py` | Vérification SÉMANTIQUE : les tests doivent rejeter le code cassé (mutation testing) | `generate_mutants`, `mutation_score`, `oracle_verdict`, `oracle_challenge` |
+| `nodus_perceptual.py` | Vérification du MÉDIA (pixel) : un rendu correspond à une référence (SSIM) — avec self-test de dents | `image_similarity`, `mean_ssim`, `perceptual_verdict`, `perceptual_challenge` |
+| `nodus_media.py` | Vérification du MÉDIA (structure) : propriétés ffprobe vs spec (durée/dim/codec/flux) — spec vide = vacueuse | `probe_media`, `media_properties`, `check_media`, `media_challenge` |
+| `nodus_search.py` | AMPLIFICATION : best-of-N guidé par le vérificateur (récolte pass@k) | `best_of_n`, `expected_success` |
+| `nodus_amplify.py` | Amplification opt-in câblée sur l'agent : N runs frais, garde le 1er CERTIFIÉ | `amplified_run`, `_verify_dir` |
+| `nodus_falsify.py` | Reverse-NODUS : cherche un CONTRE-EXEMPLE exécuté (property-based/fuzz) — comble l'angle mort des cas fixes | `falsify`, `FalsifyResult` |
+| `nodus_policy.py` | Régime adaptatif backend + profil : anti-paralysie, anti-thrash, read-paralysis, budget profil-conscient | `policy_for`, `should_force_write`, `should_refocus`, `should_stop_read_paralysis` |
+| `nodus_knowledge.py` | Pont mémoire : découvertes rappelées par pertinence (flag `knowledge`) | `save_finding`, `recall_findings` |
+| `nodus_redteam.py` | Registre VIVANT des attaques red-team (33, 0 GAP) | `REGISTRY`, `coverage_summary`, `parse_proposed_attacks` |
+| `nodus_claim_check.py` | Pont SWARM→AGENT : extraire les affirmations falsifiables, bâtir leur vérif | `extract_claims`, `build_verify_task` |
+| `nodus_selfredteam.py` | Boucle self-red-team : verdict ANCRÉ DANS LE CODE (jamais la parole de l'agent) | `build_attack_task`, `reconcile` |
 
-Le serveur `linus_swarm_server.py` expose le tout en HTTP.
+Le serveur `nodus_swarm_server.py` expose le tout en HTTP.
 
 ---
 
 ## 🎛️ Les couches (flags cumulables)
 
 ```bash
-python linus_agent.py "TÂCHE" [options]
+python nodus_agent.py "TÂCHE" [options]
 ```
 
 | Flag | Effet |
 |---|---|
-| `--memory` / `-M` | Mémoire persistante inter-sessions (`.linus_memory.md`). Se souvient AUSSI des échecs (mémoire stoïcienne). |
+| `--memory` / `-M` | Mémoire persistante inter-sessions (`.nodus_memory.md`). Se souvient AUSSI des échecs (mémoire stoïcienne). |
 | `--plan` / `-p` | Génère un plan explicite avant les tâches complexes. |
 | `--profile X` / `-P` | Profil spécialisé : `code`, `debug`, `docs`, `test`, `research`, `security`, `general`, ou `auto` (routage). `security`/`research` sont *read-heavy* → budget de lecture relâché. |
 | `--reflect` / `-R` | Analyse la trace, extrait des leçons, les ré-injecte aux runs suivants. |
@@ -141,7 +141,7 @@ python linus_agent.py "TÂCHE" [options]
 Exemple complet :
 
 ```bash
-python linus_agent.py "1. compte les def  2. write_file result.txt" \
+python nodus_agent.py "1. compte les def  2. write_file result.txt" \
   --model claude-sonnet-4-5 --skills --verify --reflect --memory
 ```
 
@@ -156,7 +156,7 @@ python linus_agent.py "1. compte les def  2. write_file result.txt" \
 - **Content-verify** (`invalid_content_files`) : au-delà de l'existence, un `.py`
   qui ne *compile* pas / un `.json` qui ne *parse* pas n'est pas un livrable —
   attrapé même quand le fichier a bien été écrit (indépendant de `filter_missing`).
-- **Falsify-gate** (`linus_falsify`, avec `--oracle`) : si la tâche nomme un fichier
+- **Falsify-gate** (`nodus_falsify`, avec `--oracle`) : si la tâche nomme un fichier
   de propriétés humain `*_props.py`, la gate cherche un CONTRE-EXEMPLE exécuté
   (entrées aléatoires vs invariants) — comble l'angle mort des cas FIXES (un bug
   que cas+tests ratent ensemble). Contre-exemple trouvé = code faux → relance.
@@ -178,26 +178,26 @@ python linus_agent.py "1. compte les def  2. write_file result.txt" \
   sont nommés et refusés ; les gardes restent en CODE, indésactivables par l'input.
 - **Anti-DNS-rebind** (`_validate_and_pin_url`) : `web_fetch` résout l'hôte UNE
   fois et épingle l'IP + en-tête Host → pas de re-résolution vers une cible interne.
-- **Anti-thrash + read-paralysis** (`linus_policy`) : écrire du bruit sans livrer,
+- **Anti-thrash + read-paralysis** (`nodus_policy`) : écrire du bruit sans livrer,
   ou lire en boucle sans produire, est détecté et recentré (signal *outcome*).
 - **Référence protégée** (`_protected_reference_error`) : un fichier-runner existant
   (ex. `mini_pytest.py`) n'est pas réécrasable sur un VERIFY halluciné.
 - **exec-verify** (`verify_commands`) : si la tâche exige « exit 0 », la commande
   est RÉ-EXÉCUTÉE — verify dépasse l'existence du fichier.
-- **oracle sémantique** (`linus_oracle`, flag `--oracle`) : exit 0 ne suffit pas.
+- **oracle sémantique** (`nodus_oracle`, flag `--oracle`) : exit 0 ne suffit pas.
   On CASSE le code (mutants : `<`→`>=`, `+`→`-`, `return`→`None`…) et on exige
   que les tests ÉCHOUENT. Une suite qui passe même sur du code cassé est
   *vacueuse* → le « PASS » ne prouve rien → relance forcée. La frontière de la
   *correction sémantique* est ainsi repoussée de « les tests passent » (gameable)
   à « les tests rejettent démontrablement les défauts » — verdict ancré dans le CODE.
-- **oracle perceptuel** (`linus_perceptual`) : pendant MÉDIA du précédent. Un rendu
+- **oracle perceptuel** (`nodus_perceptual`) : pendant MÉDIA du précédent. Un rendu
   (Blender, ffmpeg…) est comparé à une référence par SSIM par blocs. Même self-test
   de dents : on PERTURBE la référence et on exige que la similarité chute sous le
   seuil — sinon le seuil est vacueux. Prouvé au sol : cube vs cube = 1.00 (match),
   sphère vs cube = 0.81 (rejeté), référence perturbée = 0.64 (dents). **Branché en
   gate** via `--oracle` quand la tâche nomme `<produit> matching <référence>` :
   produit absent → `missing` (force le rendu), référence absente → abstention.
-- **oracle média structurel** (`linus_media`, ffprobe) : pendant « propriétés » du
+- **oracle média structurel** (`nodus_media`, ffprobe) : pendant « propriétés » du
   perceptuel, pour le pilotage ffmpeg. Confronte durée/dimensions/codecs/flux du
   fichier produit à une spec ; une spec sans contrainte = `no_constraints` (vacueuse,
   ne prouve rien). Prouvé au sol (ffmpeg réel) : spec correcte → match, spec fausse
@@ -207,15 +207,15 @@ python linus_agent.py "1. compte les def  2. write_file result.txt" \
 
 ## 🔗 Les ponts (deux systèmes, une vérité externe)
 
-LINUS a **deux** systèmes : l'**agent** (outils + verify, pour AGIR) et le **swarm**
+NODUS a **deux** systèmes : l'**agent** (outils + verify, pour AGIR) et le **swarm**
 (raisonnement multi-masques sans outils, pour PENSER). Trois ponts les relient — et
 dans chacun, **le verdict reste externe (code/ground truth), jamais la parole de l'agent** :
 
 | Pont | Sens | Rôle |
 |---|---|---|
-| **autoresearch** (`e2e_redteam_autoresearch.py`) | agent → red-team | LINUS propose des classes d'attaques hors des surfaces couvertes |
-| **claim-check** (`linus_claim_check.py`) | swarm → agent | le swarm avance des chiffres falsifiables → l'agent les PROUVE au sol (web) |
-| **self-red-team** (`linus_selfredteam.py`) | LINUS → LINUS | il attaque son propre code → le CODE tranche le verdict (témoin disque) + flague le mensonge |
+| **autoresearch** (`e2e_redteam_autoresearch.py`) | agent → red-team | NODUS propose des classes d'attaques hors des surfaces couvertes |
+| **claim-check** (`nodus_claim_check.py`) | swarm → agent | le swarm avance des chiffres falsifiables → l'agent les PROUVE au sol (web) |
+| **self-red-team** (`nodus_selfredteam.py`) | NODUS → NODUS | il attaque son propre code → le CODE tranche le verdict (témoin disque) + flague le mensonge |
 
 > Le swarm clone sur les petits modèles et V4 ; il ne DIVERGE qu'avec Opus.
 > Réserver le swarm à Opus ; l'agent tourne bien sur V4-pro (ou gratuit).
@@ -224,7 +224,7 @@ dans chacun, **le verdict reste externe (code/ground truth), jamais la parole de
 
 ## 🌐 Backends
 
-`linus_agent` route automatiquement selon le nom du modèle :
+`nodus_agent` route automatiquement selon le nom du modèle :
 
 | Modèle | Backend | Clé |
 |---|---|---|
@@ -276,23 +276,23 @@ disque. Seuls quelques tests ont besoin d'un réseau/API (rounds e2e, AB).
 
 ```bash
 python -m pytest tests/ \
-  --ignore tests/test_linus_gpt.py \
-  --ignore tests/test_linus_tokenizer.py \
+  --ignore tests/test_nodus_gpt.py \
+  --ignore tests/test_nodus_tokenizer.py \
   --ignore tests/test_climbmix.py \
   --ignore tests/test_worldmodel_bridge.py \
-  --ignore tests/test_linus_tools.py \
+  --ignore tests/test_nodus_tools.py \
   --ignore-glob "tests/test_spinoza*" \
   -q --tb=short
 ```
 
 Ces exclusions couvrent le planificateur/entraînement (torch) et les tests
 spinoza (`.so` natifs) — jamais la boucle agent/verify/slot-fill, qui reste
-100% testée sans torch. `test_linus_tools.py` importe torch au module donc il
+100% testée sans torch. `test_nodus_tools.py` importe torch au module donc il
 n'est pas collectable sans torch ; `conftest.py` protège déjà
-`linus_nanochat/__init__` de l'import torch.
+`nodus_nanochat/__init__` de l'import torch.
 
 Couverture : les 22 modules cœur de l'agent sont maintenus à **100%**
-(`--cov=linus_<module>`, vérifié à chaque commit ; suite > 2000 tests).
+(`--cov=nodus_<module>`, vérifié à chaque commit ; suite > 2000 tests).
 
 ---
 

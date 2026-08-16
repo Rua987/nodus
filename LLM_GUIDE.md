@@ -1,7 +1,7 @@
-# 🤖 Guide des LLMs — linus_nanochat
+# 🤖 Guide des LLMs — nodus_nanochat
 
 > **Pourquoi ce fichier ?** Éviter de perdre 30min à tester chaque modèle.  
-> Benchmark réalisé le 2026-06-11 sur des tâches réelles via `linus_agent.py`.
+> Benchmark réalisé le 2026-06-11 sur des tâches réelles via `nodus_agent.py`.
 
 ---
 
@@ -19,7 +19,7 @@
 
 ## Backend API (modèles capables)
 
-`linus_agent` route automatiquement selon le nom de modèle (`linus_backends.py`) :
+`nodus_agent` route automatiquement selon le nom de modèle (`nodus_backends.py`) :
 
 | Modèle | Backend | Clé requise |
 |---|---|---|
@@ -31,9 +31,9 @@
 dans un fichier `.{provider}_api_key` (gitignored) ou la variable d'env.
 
 ```bash
-# Exemple : faire tourner LINUS sur Claude
+# Exemple : faire tourner NODUS sur Claude
 echo "VOTRE_CLE" > .anthropic_api_key   # jamais collée dans le chat
-python linus_agent.py "1. compte les def  2. write_file result.txt" \
+python nodus_agent.py "1. compte les def  2. write_file result.txt" \
   --model claude-sonnet-4-5 --skills --verify --reflect
 ```
 
@@ -46,7 +46,7 @@ tool_result) testée avec HTTP mocké.
 
 ## Support de l'API tools Ollama
 
-L'agent (`linus_agent.py`) utilise l'endpoint `/api/chat` avec le champ `tools`.  
+L'agent (`nodus_agent.py`) utilise l'endpoint `/api/chat` avec le champ `tools`.  
 **Tester rapidement** si un nouveau modèle supporte les tools :
 
 ```python
@@ -62,8 +62,8 @@ print("OK" if resp.status_code == 200 else f"NON SUPPORTÉ ({resp.status_code})"
 
 | Modèle | Tools | Notes |
 |---|---|---|
-| `qwen3.5:2b` | ✅ | Défaut de linus_agent — fiable |
-| `hermes3:8b` | ✅ mais bruyant | API tools OK, fiabilité agent médiocre (mesuré 2026-07-23) : ~50-60% lot facile, **0/12 lot dur**, échecs verify, très stochastique à temp défaut (±4/50 run à run). Ne pas utiliser pour A/B sans `LINUS_TEMPERATURE=0`. Cf. `reports/plan_source_ab_*.md` |
+| `qwen3.5:2b` | ✅ | Défaut de nodus_agent — fiable |
+| `hermes3:8b` | ✅ mais bruyant | API tools OK, fiabilité agent médiocre (mesuré 2026-07-23) : ~50-60% lot facile, **0/12 lot dur**, échecs verify, très stochastique à temp défaut (±4/50 run à run). Ne pas utiliser pour A/B sans `NODUS_TEMPERATURE=0`. Cf. `reports/plan_source_ab_*.md` |
 | `granite4.1:3b` | ✅ | Rapide mais hallucine (voir ci-dessous) |
 | `huihui_ai/qwen3.5-abliterated:9b` | ✅ | **IMPRATICABLE** sur cette machine: ~1-2 min/appel, 13+ min sans finir une tâche A/B même avec timeout=300s. Ne pas réutiliser pour l'agent ici. |
 | `dolphin3:latest` | ❌ | HTTP 400 |
@@ -129,14 +129,14 @@ RUN B skills + verify :
 | stopped_reason | **done** | **max_rounds** |
 | answer | "result.txt créé avec 49" | "result.txt créé avec 79" |
 | fichier réellement créé | NON | NON |
-| LINUS a menti ? | **OUI (faux succès certifié)** | **NON (échec honnête)** |
+| NODUS a menti ? | **OUI (faux succès certifié)** | **NON (échec honnête)** |
 
 **Le résultat clé** : verify ne fait PAS créer le fichier (granite n'appelle
 jamais write_file — son plafond). MAIS verify transforme un FAUX SUCCÈS en
-ÉCHEC HONNÊTE. Sans verify, LINUS certifie un mensonge ("done"). Avec verify,
+ÉCHEC HONNÊTE. Sans verify, NODUS certifie un mensonge ("done"). Avec verify,
 il refuse ("max_rounds, fichier absent").
 
-C'est le couronnement de "le chemin, LA VÉRITÉ, pas le résultat" : LINUS ne
+C'est le couronnement de "le chemin, LA VÉRITÉ, pas le résultat" : NODUS ne
 peut pas forcer un modèle cassé à réussir, mais il REFUSE de certifier un
 faux succès. Les deux moitiés de la preuve :
 - test unitaire `test_verify_passes_once_file_created` : verify force la vraie
@@ -170,10 +170,10 @@ faux succès. Les deux moitiés de la preuve :
 **1. Répond de mémoire si la tâche lui semble "connue"**  
 ```
 # MAL — il va générer du code au lieu de lire le fichier
-"Lis linus_tools.py et liste les fonctions"
+"Lis nodus_tools.py et liste les fonctions"
 
 # BIEN — il est forcé d'exécuter
-"bash: grep '^def ' linus_tools.py"
+"bash: grep '^def ' nodus_tools.py"
 ```
 
 **2. bash Unix échoue sur Windows**  
@@ -217,10 +217,10 @@ Ajouter dans le prompt : `"do NOT skip any step"` ou `"You MUST run commands, do
 "Do these steps ONE BY ONE, one tool call per step, do not skip any."
 
 # Recherche multi-fichiers Windows → utiliser le tool grep (pas bash grep)
-grep(pattern="mot_clé", path="linus_tools.py")
+grep(pattern="mot_clé", path="nodus_tools.py")
 
 # Compter des occurrences → bash avec fichier explicite
-bash: grep -c "^def " linus_tools.py
+bash: grep -c "^def " nodus_tools.py
 ```
 
 ---
@@ -260,36 +260,36 @@ MAX_CHALLENGES = 3  # injections max par tâche
 
 ## Architecture des modules (2026-06-12)
 
-LINUS est maintenant un stack de 7 modules, chacun à 100% coverage :
+NODUS est maintenant un stack de 7 modules, chacun à 100% coverage :
 
 | Module | Rôle | Fonctions clés |
 |---|---|---|
-| `linus_tools.py` | 8 outils (bash, file, grep, glob, web, brave) | `dispatch_tool`, `tool_bash` |
-| `linus_agent.py` | Boucle ReAct + orchestration | `run_agent`, `stream_agent` |
-| `linus_memory.py` | Mémoire persistante inter-sessions | `load_memory`, `append_memory_entry` |
-| `linus_chat.py` | REPL interactif | `chat_loop`, `parse_input` |
-| `linus_planner.py` | Planification des tâches complexes | `needs_planning`, `parse_plan` |
-| `linus_profiles.py` | Agents spécialisés + routeur | `route_task`, `get_profile_prompt` |
-| `linus_reflect.py` | Auto-amélioration déterministe | `analyze_run`, `format_lessons` |
+| `nodus_tools.py` | 8 outils (bash, file, grep, glob, web, brave) | `dispatch_tool`, `tool_bash` |
+| `nodus_agent.py` | Boucle ReAct + orchestration | `run_agent`, `stream_agent` |
+| `nodus_memory.py` | Mémoire persistante inter-sessions | `load_memory`, `append_memory_entry` |
+| `nodus_chat.py` | REPL interactif | `chat_loop`, `parse_input` |
+| `nodus_planner.py` | Planification des tâches complexes | `needs_planning`, `parse_plan` |
+| `nodus_profiles.py` | Agents spécialisés + routeur | `route_task`, `get_profile_prompt` |
+| `nodus_reflect.py` | Auto-amélioration déterministe | `analyze_run`, `format_lessons` |
 
 ### Flags de run_agent / CLI
 
 ```bash
-python linus_agent.py "tâche" \
-  --memory      # -M : persiste le contexte dans .linus_memory.md
+python nodus_agent.py "tâche" \
+  --memory      # -M : persiste le contexte dans .nodus_memory.md
   --plan        # -p : génère un plan pour les tâches complexes
   --profile auto # -P : route vers code/debug/docs/test, ou force un profil
   --reflect     # -R : analyse la trace et affiche les leçons
   --verbose     # -v : trace détaillée
 
-python linus_chat.py   # REPL interactif (mémoire activée par défaut)
+python nodus_chat.py   # REPL interactif (mémoire activée par défaut)
 ```
 
 ### Capacités combinables
 
 Tous les flags sont indépendants et cumulables. Exemple le plus complet :
 ```bash
-python linus_agent.py "refactorise le module X puis écris les tests" \
+python nodus_agent.py "refactorise le module X puis écris les tests" \
   --memory --plan --profile auto --reflect --verbose
 ```
 → route le profil, génère un plan, exécute avec mémoire, analyse la trace,
@@ -297,7 +297,7 @@ python linus_agent.py "refactorise le module X puis écris les tests" \
 
 ---
 
-## Configuration actuelle de linus_agent.py
+## Configuration actuelle de nodus_agent.py
 
 ```python
 OLLAMA_URL        = "http://localhost:11434/api/chat"

@@ -4,10 +4,10 @@
 sequence of tool calls — and an observability layer that streams every step
 into Grafana Cloud.**
 
-> Nodus is the public alias of **LINUS**, a research planner developed for a
-> 324M-parameter model (trained locally, runs on CPU or a single GPU). The
-> planner outputs **only tool names** — no arguments, no replanning. The harness
-> fills the arguments, verifies each step, and executes.
+> Nodus is a research planner developed for a 324M-parameter model (trained
+> locally, runs on CPU or a single GPU). The planner outputs **only tool names**
+> — no arguments, no replanning. The harness fills the arguments, verifies each
+> step, and executes.
 
 ---
 
@@ -47,7 +47,7 @@ result — into a Grafana dashboard as live annotations:
 
 ```
 ▶ task: deploy the app then verify health
-  ∘ plan [linus]: ['bash', 'bash']
+  ∘ plan [nodus]: ['bash', 'bash']
     ↳ tool bash {"command": "echo step1"}   ✓ ok
     ↳ tool bash {"command": "echo step2"}   ✓ ok
 ● result: Done.
@@ -72,21 +72,21 @@ pip install -r requirements-ci.txt
 #    (checkpoint_sft_plan_v5.pt, ~940 MB — see "Checkpoints" below)
 
 # 3. Plan a task (mock telemetry, no Grafana account needed)
-python linus_plan_local.py --plan-once
+python nodus_plan_local.py --plan-once
 #   echo "read src/main.py, then search for request_id, then edit it" | \
-#     python linus_plan_local.py --plan-once
+#     python nodus_plan_local.py --plan-once
 #   → {"ok": true, "names": ["read_file", "grep", "edit_file"]}
 
 # 4. Stream the whole run into Grafana (live) or to JSONL (mock)
-NODUS_GRAFANA=mcp python linus_agent.py "..." --plan --plan-source linus
-NODUS_GRAFANA=jsonl:run.jsonl python linus_agent.py "..." --plan --plan-source linus
+NODUS_GRAFANA=mcp python nodus_agent.py "..." --plan --plan-source nodus
+NODUS_GRAFANA=jsonl:run.jsonl python nodus_agent.py "..." --plan --plan-source nodus
 ```
 
 ## Run the demo (30 seconds, zero dependencies)
 
 `demo_agentic_cinema.py` replays the full pipeline end to end — task → plan →
 tools → Grafana — deterministically, with **no checkpoint, no Ollama, no token**
-required. Add `checkpoints/checkpoint_sft_plan_v5.pt` (or set `LINUS_PLAN_CKPT`)
+required. Add `checkpoints/checkpoint_sft_plan_v5.pt` (or set `NODUS_PLAN_CKPT`)
 and the same command uses the **real 324M planner** instead of the gold plan:
 
 ```bash
@@ -101,7 +101,7 @@ timeline, `NODUS_GRAFANA=mcp` pushes live annotations to Grafana Cloud:
 
 ```
 ▶ task: Read src/utils.py, then save a new file config_demo.yaml with a stub, then verify it exists.
-  ∘ plan [linus]: ['read_file', 'write_file', 'bash']
+  ∘ plan [nodus]: ['read_file', 'write_file', 'bash']
     ↳ tool read_file {"path": "src/utils.py"}
       ✓ def helper():     return 42
     ↳ tool write_file {"path": "config_demo.yaml", "content": "# demo stub config\nmode: default\n"}
@@ -129,13 +129,13 @@ timeline, `NODUS_GRAFANA=mcp` pushes live annotations to Grafana Cloud:
 
 ```
 bridge/            plan bridge: prompt, parser, tool schemas, versions
-linus_plan_local.py  local inference (plan NL → tool names)
-linus_auto_model.py  model architecture (324M)
-linus_gpt.py         transformer core (RoPE, RMSNorm)
-linus_agent.py       ReAct executor loop (fills args, verifies, executes)
-linus_verify.py      guardrails: normalize + 7 predicates + transformations
-linus_grafana.py     Grafana Cloud telemetry sink (mock / mcp / off)
-linus_mcp_client.py  multi-server MCP registry (namespacing, pinning)
+nodus_plan_local.py  local inference (plan NL → tool names)
+nodus_auto_model.py  model architecture (324M)
+nodus_gpt.py         transformer core (RoPE, RMSNorm)
+nodus_agent.py       ReAct executor loop (fills args, verifies, executes)
+nodus_verify.py      guardrails: normalize + 7 predicates + transformations
+nodus_grafana.py     Grafana Cloud telemetry sink (mock / mcp / off)
+nodus_mcp_client.py  multi-server MCP registry (namespacing, pinning)
 demo_agentic_cinema.py  self-contained demo: task → plan → tools → Grafana
 video_script_3min.md    3-minute narration script for the hackathon video
 devpost_draft.md        Devpost submission draft (copy-paste ready)
@@ -144,7 +144,7 @@ tests/             921 passing tests (pytest)
 
 ### Guardrails (why 99% is real)
 
-`linus_verify.py` normalizes the raw plan: it fixes the systematic failure
+`nodus_verify.py` normalizes the raw plan: it fixes the systematic failure
 classes the model was trained against (superfluous `grep` before `read`,
 `bash`-as-write, missing final `write`) and validates the result. The guardrail
 never *replaces* the executor — it makes the suggestion robust.
@@ -155,11 +155,11 @@ never *replaces* the executor — it makes the suggestion robust.
 
 The model weights are **not** committed to git (too large). Obtain
 `checkpoints/checkpoint_sft_plan_v5.pt` from the release assets (or your own
-SFT) and point `LINUS_PLAN_CKPT` at it:
+SFT) and point `NODUS_PLAN_CKPT` at it:
 
 ```bash
-export LINUS_PLAN_CKPT=checkpoints/checkpoint_sft_plan_v5.pt
-# or: $env:LINUS_PLAN_CKPT = "checkpoints\checkpoint_sft_plan_v5.pt"
+export NODUS_PLAN_CKPT=checkpoints/checkpoint_sft_plan_v5.pt
+# or: $env:NODUS_PLAN_CKPT = "checkpoints\checkpoint_sft_plan_v5.pt"
 ```
 
 ---

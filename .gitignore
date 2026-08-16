@@ -1,12 +1,12 @@
-# LINUS Memory (données utilisateur - ne pas commiter)
-LINUS_MEMORY.json
-test_memory_linus.json
+# NODUS Memory (données utilisateur - ne pas commiter)
+NODUS_MEMORY.json
+test_memory_nodus.json
 backups/*.json
 
-# LINUS runtime artifacts (mémoire persistante + leçons + playbook)
-.linus_memory.md
-.linus_lessons.md
-.linus_playbook.md
+# NODUS runtime artifacts (mémoire persistante + leçons + playbook)
+.nodus_memory.md
+.nodus_lessons.md
+.nodus_playbook.md
 
 # Clés API — JAMAIS commiter (Commandement #11)
 .brave_api_key

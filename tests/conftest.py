@@ -1,5 +1,5 @@
 """
-conftest.py — Configuration pytest pour LINUS Swarm
+conftest.py — Configuration pytest pour NODUS Swarm
 =====================================================
 Protège pytest contre les modules qui remplacent sys.stdout/stderr
 au niveau module (pattern très répandu dans le projet).
@@ -7,9 +7,9 @@ au niveau module (pattern très répandu dans le projet).
 Stratégie :
   • sys._called_from_test = True posé ICI au niveau MODULE (pas seulement
     dans pytest_configure) → flag actif AVANT que pytest 9 appelle
-    importlib.import_module('linus_nanochat') pendant la collection.
-  • linus_nanochat/__init__.py lit ce flag et court-circuite tous les
-    imports coûteux (linus_chat, linus_gpt, PyTorch…).
+    importlib.import_module('nodus_nanochat') pendant la collection.
+  • nodus_nanochat/__init__.py lit ce flag et court-circuite tous les
+    imports coûteux (nodus_chat, nodus_gpt, PyTorch…).
 """
 import sys
 

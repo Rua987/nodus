@@ -12,7 +12,7 @@ _HERE = Path(__file__).resolve().parent
 _HARNESS = _HERE.parent
 sys.path.insert(0, str(_HARNESS))
 
-from linus_tools import TOOL_SCHEMAS  # noqa: E402
+from nodus_tools import TOOL_SCHEMAS  # noqa: E402
 from parse_check import write_version  # noqa: E402
 
 

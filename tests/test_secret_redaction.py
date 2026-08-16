@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-🏛️ TEMPLE IAM - Tests rédaction de secrets (linus_tools)
+🏛️ TEMPLE IAM - Tests rédaction de secrets (nodus_tools)
 ⚡ Coverage target: 100% sur redact_secrets / _redact_result / dispatch_tool hook
 Copyright © 2024 Temple IAM - All Rights Reserved
 """
@@ -14,7 +14,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from linus_tools import (
+from nodus_tools import (
     ToolResult,
     _redact_result,
     dispatch_tool,
@@ -143,7 +143,7 @@ def test_dispatch_tool_redacts_real_file(tmp_path):
 def test_dispatch_tool_redacts_error_path(tmp_path):
     """Même un message d'erreur contenant un secret est caviardé."""
     fake = ToolResult(success=False, output="", error="bad key sk-" + "w" * 40)
-    with patch("linus_tools._dispatch_tool", return_value=fake):
+    with patch("nodus_tools._dispatch_tool", return_value=fake):
         res = dispatch_tool("read_file", {"file_path": "x"}, cwd=str(tmp_path))
     assert _REDACTED in res.error
 

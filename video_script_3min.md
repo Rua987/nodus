@@ -13,7 +13,7 @@ python demo_agentic_cinema.py --contrast     # plan vs no-plan side by side
 python demo_agentic_cinema.py --list-tasks   # for the intro card
 ```
 If `checkpoints/checkpoint_sft_plan_v5.pt` is present the demo uses the
-**real 324M planner** (plan source: `[linus]`); otherwise the gold plan
+**real 324M planner** (plan source: `[nodus]`); otherwise the gold plan
 (`[demo-gold]`) — visually identical, deterministic, safe for recording.
 
 ---

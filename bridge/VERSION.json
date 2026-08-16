@@ -1,7 +1,7 @@
 {
   "bridge_version": "1.0.0",
   "grammar": "json_tool_call_text_tools",
-  "parser": "linus_agent._parse_text_tool_calls",
+  "parser": "nodus_agent._parse_text_tool_calls",
   "exact_policy": "parse_ok+strict_object_args+name+required_args; degraded_command_fallback=FAIL",
   "files": {
     "tool_schemas.json": "76c5ad75ccc9e4a609205f7dc713df465008c1b29e75a9963cdb4bf85173f344",

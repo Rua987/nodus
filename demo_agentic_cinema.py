@@ -6,7 +6,7 @@ NODUS demo — task → plan → tools → Grafana Cloud.
 Shows the whole Nodus pipeline end to end, deterministically:
 
   1. a natural-language task arrives
-  2. LINUS (the 324M local planner) turns it into an *ordered list of tool
+  2. NODUS (the 324M local planner) turns it into an *ordered list of tool
      names* — the real model when `checkpoints/checkpoint_sft_plan_v5.pt` is
      present, a deterministic gold plan otherwise (the demo always runs)
   3. the harness fills the arguments and executes each tool (simulated, zero
@@ -14,7 +14,7 @@ Shows the whole Nodus pipeline end to end, deterministically:
   4. every step is streamed to Grafana Cloud as annotations:
         task → plan → tool_call → tool_result → result
 
-Telemetry is controlled by $NODUS_GRAFANA (see `linus_grafana.py`):
+Telemetry is controlled by $NODUS_GRAFANA (see `nodus_grafana.py`):
     NODUS_GRAFANA=mock                 print the timeline (default, no token)
     NODUS_GRAFANA=jsonl:run.jsonl      mock + persist events to JSONL
     NODUS_GRAFANA=mcp                  push live annotations to Grafana Cloud
@@ -27,7 +27,7 @@ Usage:
     python demo_agentic_cinema.py --task-key tune # run a curated task
     python demo_agentic_cinema.py --task "Save a new file out.txt with a stub"
     python demo_agentic_cinema.py --contrast      # plan vs no-plan side by side
-    python demo_agentic_cinema.py --no-linus      # force the gold plan (skip real LINUS)
+    python demo_agentic_cinema.py --no-nodus      # force the gold plan (skip real NODUS)
     python demo_agentic_cinema.py --live          # real Ollama executor (optional)
 """
 
@@ -45,13 +45,13 @@ from typing import Dict, List, Optional, Tuple
 # Make the repo importable when run from any directory.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from linus_grafana import GrafanaSink, sink_from_env  # noqa: E402
+from nodus_grafana import GrafanaSink, sink_from_env  # noqa: E402
 
 _HERE = Path(__file__).resolve().parent
 
 # ── Curated demo tasks ────────────────────────────────────────────────────
 # `plan` is the ordered (tool_name, args) sequence the harness would execute —
-# i.e. what LINUS is trained to output (the tool names) plus the args the
+# i.e. what NODUS is trained to output (the tool names) plus the args the
 # harness fills. `workspace` is the synthetic repo the demo executes against.
 
 DEMO_TASKS: Dict[str, dict] = {
@@ -67,7 +67,7 @@ DEMO_TASKS: Dict[str, dict] = {
             "src/utils.py": "def helper():\n    return 42\n",
             "config.yaml": "debug: true\n",
         },
-        "note": "read → write → verify: the multi-step shape LINUS generalizes best on.",
+        "note": "read → write → verify: the multi-step shape NODUS generalizes best on.",
     },
     "tune": {
         "task": "Find where 'debug' is configured, then update it to 'false'.",
@@ -76,7 +76,7 @@ DEMO_TASKS: Dict[str, dict] = {
             ("edit_file", {"path": "config.yaml", "old": "debug: true", "new": "debug: false"}),
         ],
         "workspace": {"config.yaml": "debug: true\nport: 8080\n"},
-        "note": "search then edit — the grep→edit signature LINUS learned to plan.",
+        "note": "search then edit — the grep→edit signature NODUS learned to plan.",
     },
     "create": {
         "task": "Save a new file CHANGELOG_demo.md with a stub.",
@@ -117,16 +117,16 @@ def _force_utf8_stdout() -> None:
 _force_utf8_stdout()
 
 
-# ── Real LINUS planner ────────────────────────────────────────────────────
+# ── Real NODUS planner ────────────────────────────────────────────────────
 
-def _real_linus_plan(task: str) -> Optional[List[str]]:
-    """Plan via the real 324M LINUS model — only when the checkpoint exists."""
-    env_ckpt = os.environ.get("LINUS_PLAN_CKPT", "").strip()
+def _real_nodus_plan(task: str) -> Optional[List[str]]:
+    """Plan via the real 324M NODUS model — only when the checkpoint exists."""
+    env_ckpt = os.environ.get("NODUS_PLAN_CKPT", "").strip()
     ckpt = Path(env_ckpt) if env_ckpt else _HERE / "checkpoints" / "checkpoint_sft_plan_v5.pt"
     if not ckpt.exists():
         return None  # no weights → deterministic gold fallback
     try:
-        from linus_plan_local import try_plan_tool_names
+        from nodus_plan_local import try_plan_tool_names
 
         return try_plan_tool_names(task, ckpt_path=str(ckpt))
     except Exception:
@@ -216,7 +216,7 @@ def _first_new_path(task: str, ws: Dict[str, str], fallback: str) -> str:
 
 
 def _default_args(name: str, task: str, ws: Dict[str, str]) -> dict:
-    """Fill deterministic args when LINUS only returned the tool *names*."""
+    """Fill deterministic args when NODUS only returned the tool *names*."""
     if name == "read_file":
         return {"path": _first_existing_path(task, ws, "src/main.py")}
     if name == "write_file":
@@ -285,7 +285,7 @@ def run_demo(
     sink,
     task_key: Optional[str] = None,
     task_text: Optional[str] = None,
-    use_real_linus: bool = True,
+    use_real_nodus: bool = True,
 ) -> dict:
     """Run a demo task. Returns {"task", "summary", "source", "workspace"}."""
     if task_key is None and task_text is None:
@@ -294,11 +294,11 @@ def run_demo(
         spec = DEMO_TASKS[task_key]
         task, ws = spec["task"], dict(spec["workspace"])
         steps, source = list(spec["plan"]), "demo-gold"
-        if use_real_linus:
-            names = _real_linus_plan(task)
+        if use_real_nodus:
+            names = _real_nodus_plan(task)
             if names:
                 steps = [(n, _default_args(n, task, ws)) for n in names]
-                source = "linus"
+                source = "nodus"
         return {
             "task": task,
             "summary": run_plan(sink, task, steps, ws, source),
@@ -309,11 +309,11 @@ def run_demo(
     task = task_text or DEMO_TASKS["inspect"]["task"]
     ws: Dict[str, str] = {}
     steps, source = [], "none"
-    if use_real_linus:
-        names = _real_linus_plan(task)
+    if use_real_nodus:
+        names = _real_nodus_plan(task)
         if names:
             steps = [(n, _default_args(n, task, ws)) for n in names]
-            source = "linus"
+            source = "nodus"
     if not steps:
         steps, source = _naive_steps(), "naive"
     return {
@@ -329,7 +329,7 @@ def run_contrast(task_key: str = "inspect") -> Tuple[str, str, str]:
     spec = DEMO_TASKS[task_key]
     task = spec["task"]
     with GrafanaSink(mode="mock") as plan_sink:
-        plan_summary = run_plan(plan_sink, task, list(spec["plan"]), dict(spec["workspace"]), "linus")
+        plan_summary = run_plan(plan_sink, task, list(spec["plan"]), dict(spec["workspace"]), "nodus")
     with GrafanaSink(mode="mock") as naive_sink:
         naive_summary = run_plan(naive_sink, task, _naive_steps(), {}, "naive")
     return task, plan_summary, naive_summary
@@ -344,8 +344,8 @@ def main() -> int:
     )
     ap.add_argument("--list-tasks", action="store_true", help="list the curated demo tasks")
     ap.add_argument("--task-key", choices=list(DEMO_TASKS), default=None, help="run a curated demo task")
-    ap.add_argument("--task", default=None, help="custom task text (LINUS plans it when the checkpoint is present)")
-    ap.add_argument("--no-linus", action="store_true", help="force the deterministic gold plan (skip real LINUS)")
+    ap.add_argument("--task", default=None, help="custom task text (NODUS plans it when the checkpoint is present)")
+    ap.add_argument("--no-nodus", action="store_true", help="force the deterministic gold plan (skip real NODUS)")
     ap.add_argument("--contrast", action="store_true", help="show plan vs no-plan side by side")
     ap.add_argument("--live", action="store_true", help="run the real Ollama executor end to end (optional)")
     args = ap.parse_args()
@@ -361,12 +361,12 @@ def main() -> int:
         task = spec["task"] if spec else (args.task or DEMO_TASKS["inspect"]["task"])
         names = [n for n, _ in spec["plan"]] if spec else None
         try:
-            from linus_agent import run_agent
+            from nodus_agent import run_agent
         except ImportError as exc:  # pragma: no cover
-            _out(f"--live requires linus_agent.py (and Ollama): {exc}")
+            _out(f"--live requires nodus_agent.py (and Ollama): {exc}")
             return 1
         with sink_from_env() as sink:
-            res = run_agent(task, plan=True, plan_source="linus", plan_names=names, telemetry=sink)
+            res = run_agent(task, plan=True, plan_source="nodus", plan_names=names, telemetry=sink)
         _out(f"answer: {res.answer}")
         _out("")
         _out(sink.summary())
@@ -378,29 +378,29 @@ def main() -> int:
             task, plan_summary, naive_summary = run_contrast(args.task_key or "inspect")
             _out(f"task: {task}")
             _out("")
-            _out("-- WITH LINUS PLAN --")
+            _out("-- WITH NODUS PLAN --")
             _out(plan_summary)
             _out("")
             _out("-- NO PLAN (ad-hoc bash) --")
             _out(naive_summary)
             _out("")
-            _out("-> LINUS plans the ordered tool names; the ad-hoc path flails without creating the file.")
+            _out("-> NODUS plans the ordered tool names; the ad-hoc path flails without creating the file.")
             return 0
         with sink:
             meta = run_demo(
                 sink,
                 task_key=args.task_key,
                 task_text=args.task,
-                use_real_linus=not args.no_linus,
+                use_real_nodus=not args.no_nodus,
             )
         _out(meta["summary"])
         _out("")
-        if meta["source"] == "linus":
-            _out("plan source: real LINUS 324M (local planner, CPU)")
+        if meta["source"] == "nodus":
+            _out("plan source: real NODUS 324M (local planner, CPU)")
         elif meta["source"] == "demo-gold":
             _out("plan source: deterministic gold plan (add checkpoints/checkpoint_sft_plan_v5.pt for the real 324M planner)")
         else:
-            _out("plan source: none (ad-hoc bash) — set LINUS_PLAN_CKPT or use --task-key for a real plan")
+            _out("plan source: none (ad-hoc bash) — set NODUS_PLAN_CKPT or use --task-key for a real plan")
         if sink.mode == "mcp":
             _out(f"[grafana] pushed {len(sink.events)} annotations (tags: nodus, agentic-cinema)")
         else:

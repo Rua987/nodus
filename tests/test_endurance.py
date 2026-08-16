@@ -22,7 +22,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from linus_agent import run_agent
+from nodus_agent import run_agent
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -71,7 +71,7 @@ class TestEndurancePersistence:
             _msg(tool_calls=_wf("part5.txt", "5")),
             _msg(content="All 5 files have been created successfully."),  # vraie fin
         ]
-        with patch("linus_agent._chat", side_effect=_scripted_chat(scripted)):
+        with patch("nodus_agent._chat", side_effect=_scripted_chat(scripted)):
             return run_agent(task, cwd=str(tmp_path), verify=True, max_rounds=30)
 
     def test_all_files_created(self, tmp_path):
@@ -109,7 +109,7 @@ class TestEnduranceGuards:
             _msg(tool_calls=_wf("out.txt", "x")),          # puis agit vraiment
             _msg(content="Created out.txt."),              # vraie fin
         ]
-        with patch("linus_agent._chat", side_effect=_scripted_chat(scripted)):
+        with patch("nodus_agent._chat", side_effect=_scripted_chat(scripted)):
             r = run_agent("Create out.txt with x", cwd=str(tmp_path), verify=True, max_rounds=20)
         assert (tmp_path / "out.txt").exists()
         assert r.stopped_reason == "done"
@@ -121,7 +121,7 @@ class TestEnduranceGuards:
             _msg(tool_calls=_wf("goal.txt", "real")),                    # forcé d'agir
             _msg(content="Done for real."),
         ]
-        with patch("linus_agent._chat", side_effect=_scripted_chat(scripted)):
+        with patch("nodus_agent._chat", side_effect=_scripted_chat(scripted)):
             r = run_agent("Create goal.txt", cwd=str(tmp_path), verify=True, max_rounds=20)
         assert (tmp_path / "goal.txt").exists()
         assert (tmp_path / "goal.txt").read_text(encoding="utf-8") == "real"
@@ -133,7 +133,7 @@ class TestEnduranceGuards:
             _msg(tool_calls=_wf("ok.txt", "1")),
             _msg(content="I have created ok.txt as requested."),
         ]
-        with patch("linus_agent._chat", side_effect=_scripted_chat(scripted)):
+        with patch("nodus_agent._chat", side_effect=_scripted_chat(scripted)):
             r = run_agent("Create ok.txt", cwd=str(tmp_path), verify=True, max_rounds=20)
         assert r.stopped_reason == "done"
         assert r.tool_calls == 1

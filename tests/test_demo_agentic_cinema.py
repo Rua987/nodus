@@ -10,7 +10,7 @@ import pytest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import demo_agentic_cinema as demo  # noqa: E402
-from linus_grafana import GrafanaSink  # noqa: E402
+from nodus_grafana import GrafanaSink  # noqa: E402
 
 
 def _sink() -> GrafanaSink:
@@ -69,21 +69,21 @@ def test_mock_execute_read_missing_fails():
 
 def test_run_plan_emits_full_stream_in_order():
     sink = _sink()
-    demo.run_plan(sink, "Read src/utils.py", [("read_file", {"path": "src/utils.py"})], {"src/utils.py": "x"}, "linus")
+    demo.run_plan(sink, "Read src/utils.py", [("read_file", {"path": "src/utils.py"})], {"src/utils.py": "x"}, "nodus")
     kinds = [e["kind"] for e in sink.events]
     assert kinds == ["task", "plan", "tool_call", "tool_result", "result"]
     text = sink.summary()
     assert "▶ task:" in text
-    assert "∘ plan [linus]" in text
+    assert "∘ plan [nodus]" in text
     assert "↳ tool read_file" in text
     assert "● result:" in text
     sink.close()
 
 
 def test_run_demo_default_uses_gold_inspect(monkeypatch):
-    monkeypatch.setattr(demo, "_real_linus_plan", lambda task: None)
+    monkeypatch.setattr(demo, "_real_nodus_plan", lambda task: None)
     sink = _sink()
-    meta = demo.run_demo(sink, use_real_linus=True)
+    meta = demo.run_demo(sink, use_real_nodus=True)
     plan_evt = next(e for e in sink.events if e["kind"] == "plan")
     assert plan_evt["source"] == "demo-gold"
     assert plan_evt["names"] == ["read_file", "write_file", "bash"]
@@ -92,9 +92,9 @@ def test_run_demo_default_uses_gold_inspect(monkeypatch):
 
 
 def test_run_demo_gold_fallback_without_checkpoint(monkeypatch):
-    monkeypatch.setattr(demo, "_real_linus_plan", lambda task: None)
+    monkeypatch.setattr(demo, "_real_nodus_plan", lambda task: None)
     sink = _sink()
-    meta = demo.run_demo(sink, task_key="tune", use_real_linus=True)
+    meta = demo.run_demo(sink, task_key="tune", use_real_nodus=True)
     plan_evt = next(e for e in sink.events if e["kind"] == "plan")
     assert plan_evt["source"] == "demo-gold"
     assert plan_evt["names"] == ["grep", "edit_file"]
@@ -102,14 +102,14 @@ def test_run_demo_gold_fallback_without_checkpoint(monkeypatch):
     sink.close()
 
 
-def test_run_demo_uses_real_linus_when_available(monkeypatch):
-    monkeypatch.setattr(demo, "_real_linus_plan", lambda task: ["grep", "edit_file"])
+def test_run_demo_uses_real_nodus_when_available(monkeypatch):
+    monkeypatch.setattr(demo, "_real_nodus_plan", lambda task: ["grep", "edit_file"])
     sink = _sink()
-    meta = demo.run_demo(sink, task_key="tune", use_real_linus=True)
+    meta = demo.run_demo(sink, task_key="tune", use_real_nodus=True)
     plan_evt = next(e for e in sink.events if e["kind"] == "plan")
-    assert plan_evt["source"] == "linus"
+    assert plan_evt["source"] == "nodus"
     assert plan_evt["names"] == ["grep", "edit_file"]
-    # args remplis par le harnais (le plan LINUS ne donne que des noms)
+    # args remplis par le harnais (le plan NODUS ne donne que des noms)
     calls = [e for e in sink.events if e["kind"] == "tool_call"]
     assert calls[0]["name"] == "grep" and "pattern" in json.loads(calls[0]["args"])
     assert "debug: false" in meta["workspace"]["config.yaml"]
@@ -159,14 +159,14 @@ def test_default_args_edit_debug_when_present():
 def test_contrast_plan_beats_naive():
     task, plan_summary, naive_summary = demo.run_contrast("tune")
     assert "grep" in plan_summary and "edit_file" in plan_summary
-    assert "plan [linus]" in plan_summary
+    assert "plan [nodus]" in plan_summary
     assert "plan [naive]" in naive_summary
     assert "bash" in naive_summary and "edit_file" not in naive_summary
     assert task.startswith("Find where")
 
 
-# ── Réal LINUS : ne jamais planter sans checkpoint ─────────────────────────
+# ── Réal NODUS : ne jamais planter sans checkpoint ─────────────────────────
 
-def test_real_linus_plan_returns_none_without_checkpoint(monkeypatch, tmp_path):
-    monkeypatch.setenv("LINUS_PLAN_CKPT", str(tmp_path / "missing.pt"))
-    assert demo._real_linus_plan("any task") is None
+def test_real_nodus_plan_returns_none_without_checkpoint(monkeypatch, tmp_path):
+    monkeypatch.setenv("NODUS_PLAN_CKPT", str(tmp_path / "missing.pt"))
+    assert demo._real_nodus_plan("any task") is None

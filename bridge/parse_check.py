@@ -30,7 +30,7 @@ _HARNESS = _BRIDGE.parent
 if str(_HARNESS) not in sys.path:
     sys.path.insert(0, str(_HARNESS))
 
-from linus_agent import _parse_text_tool_calls  # noqa: E402
+from nodus_agent import _parse_text_tool_calls  # noqa: E402
 
 SCHEMAS_PATH = _BRIDGE / "tool_schemas.json"
 PROMPT_PATH = _BRIDGE / "mini_prompt.txt"
@@ -205,7 +205,7 @@ def write_version() -> dict:
     meta = {
         "bridge_version": "1.0.0",
         "grammar": "json_tool_call_text_tools",
-        "parser": "linus_agent._parse_text_tool_calls",
+        "parser": "nodus_agent._parse_text_tool_calls",
         "exact_policy": "parse_ok+strict_object_args+name+required_args; degraded_command_fallback=FAIL",
         "files": {
             "tool_schemas.json": sha256_file(SCHEMAS_PATH),

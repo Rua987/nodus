@@ -50,7 +50,7 @@ model is left with only what it's good at: executing.
 
 ## What it does
 
-1. **Plans** — LINUS (the 324M planner) reads a task and outputs an ordered
+1. **Plans** — NODUS (the 324M planner) reads a task and outputs an ordered
    JSON array of tool names from a fixed 8-tool vocabulary.
 2. **Executes** — the harness fills the arguments, runs each tool, and verifies
    the result against guardrails trained on the model's known failure classes.

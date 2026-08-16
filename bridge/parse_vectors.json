@@ -4,8 +4,8 @@
     "expect_label": "valid",
     "expect_exact": true,
     "gold_name": "read_file",
-    "gold_args": {"file_path": "C:\\Users\\admin\\linus_sandbox\\a.py"},
-    "text": "{\"tool_call\": {\"name\": \"read_file\", \"arguments\": {\"file_path\": \"C:\\\\Users\\\\admin\\\\linus_sandbox\\\\a.py\"}}}"
+    "gold_args": {"file_path": "C:\\Users\\admin\\nodus_sandbox\\a.py"},
+    "text": "{\"tool_call\": {\"name\": \"read_file\", \"arguments\": {\"file_path\": \"C:\\\\Users\\\\admin\\\\nodus_sandbox\\\\a.py\"}}}"
   },
   {
     "id": "v02_canonical_bash",
