@@ -81,6 +81,35 @@ NODUS_GRAFANA=mcp python linus_agent.py "..." --plan --plan-source linus
 NODUS_GRAFANA=jsonl:run.jsonl python linus_agent.py "..." --plan --plan-source linus
 ```
 
+## Run the demo (30 seconds, zero dependencies)
+
+`demo_agentic_cinema.py` replays the full pipeline end to end — task → plan →
+tools → Grafana — deterministically, with **no checkpoint, no Ollama, no token**
+required. Add `checkpoints/checkpoint_sft_plan_v5.pt` (or set `LINUS_PLAN_CKPT`)
+and the same command uses the **real 324M planner** instead of the gold plan:
+
+```bash
+python demo_agentic_cinema.py                 # plan → tools → timeline
+python demo_agentic_cinema.py --list-tasks    # show the curated demo tasks
+python demo_agentic_cinema.py --contrast      # plan vs no-plan side by side
+python demo_agentic_cinema.py --live          # real Ollama executor (optional)
+```
+
+It streams every step through the same `GrafanaSink` — mock mode prints the
+timeline, `NODUS_GRAFANA=mcp` pushes live annotations to Grafana Cloud:
+
+```
+▶ task: Read src/utils.py, then save a new file config_demo.yaml with a stub, then verify it exists.
+  ∘ plan [linus]: ['read_file', 'write_file', 'bash']
+    ↳ tool read_file {"path": "src/utils.py"}
+      ✓ def helper():     return 42
+    ↳ tool write_file {"path": "config_demo.yaml", "content": "# demo stub config\nmode: default\n"}
+      ✓ wrote 33 bytes -> config_demo.yaml
+    ↳ tool bash {"command": "ls config_demo.yaml"}
+      ✓ config_demo.yaml exists
+● result: Done: wrote config_demo.yaml.
+```
+
 ### Grafana Cloud live setup (one time)
 
 1. Create a free account at [grafana.com](https://grafana.com/cloud/).
@@ -102,7 +131,8 @@ linus_agent.py       ReAct executor loop (fills args, verifies, executes)
 linus_verify.py      guardrails: normalize + 7 predicates + transformations
 linus_grafana.py     Grafana Cloud telemetry sink (mock / mcp / off)
 linus_mcp_client.py  multi-server MCP registry (namespacing, pinning)
-tests/             893 passing tests (pytest)
+demo_agentic_cinema.py  self-contained demo: task → plan → tools → Grafana
+tests/             910 passing tests (pytest)
 ```
 
 ### Guardrails (why 99% is real)
@@ -140,7 +170,7 @@ regressions — a decisive improvement over the previous planner (91%).
 ## Tests
 
 ```bash
-python -m pytest tests/        # 893 passed
+python -m pytest tests/        # 910 passed
 ```
 
 ---

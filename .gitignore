@@ -49,5 +49,8 @@ desktop.ini
 test_output/
 *.tmp
 
+# Telemetry artifacts (Grafana JSONL — runtime output, never committed)
+*.jsonl
+
 # Checkpoints (trop lourds pour git — download depuis release/README)
 checkpoints/
