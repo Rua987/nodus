@@ -133,6 +133,7 @@ linus_grafana.py     Grafana Cloud telemetry sink (mock / mcp / off)
 linus_mcp_client.py  multi-server MCP registry (namespacing, pinning)
 demo_agentic_cinema.py  self-contained demo: task → plan → tools → Grafana
 video_script_3min.md    3-minute narration script for the hackathon video
+devpost_draft.md        Devpost submission draft (copy-paste ready)
 tests/             910 passing tests (pytest)
 ```
 
