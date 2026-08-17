@@ -210,10 +210,14 @@ class GrafanaSink:
                 )
                 return
             text = _annotation_text(evt)
-            self._bridge.call(
+            result = self._bridge.call(
                 qname,
                 {"text": text, "tags": _TAGS + [f"nodus:{evt['kind']}"]},
             )
+            if getattr(result, "success", None) is False:
+                self.errors.append(
+                    f"create_annotation rejected: {getattr(result, 'error', '?')}"
+                )
         except Exception as exc:  # jamais fatal
             self.errors.append(f"create_annotation failed: {exc}")
 

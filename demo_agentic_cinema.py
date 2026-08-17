@@ -347,7 +347,17 @@ def main() -> int:
     ap.add_argument("--task", default=None, help="custom task text (NODUS plans it when the checkpoint is present)")
     ap.add_argument("--no-nodus", action="store_true", help="force the deterministic gold plan (skip real NODUS)")
     ap.add_argument("--contrast", action="store_true", help="show plan vs no-plan side by side")
-    ap.add_argument("--live", action="store_true", help="run the real Ollama executor end to end (optional)")
+    ap.add_argument("--live", action="store_true", help="run the real executor end to end (optional)")
+    ap.add_argument(
+        "--model", "-m",
+        default=None,
+        help="Executor model (default: Ollama qwen3.5:2b; OpenRouter via openrouter/… prefix)",
+    )
+    ap.add_argument(
+        "--text-tools",
+        action="store_true",
+        help="With --live + OpenRouter: JSON-text tools for models without function calling",
+    )
     args = ap.parse_args()
 
     if args.list_tasks:
@@ -366,7 +376,12 @@ def main() -> int:
             _out(f"--live requires nodus_agent.py (and Ollama): {exc}")
             return 1
         with sink_from_env() as sink:
-            res = run_agent(task, plan=True, plan_source="nodus", plan_names=names, telemetry=sink)
+            kwargs = {"plan": True, "plan_source": "nodus", "plan_names": names, "telemetry": sink}
+            if args.model:
+                kwargs["model"] = args.model
+            if args.text_tools:
+                kwargs["text_tools"] = True
+            res = run_agent(task, **kwargs)
         _out(f"answer: {res.answer}")
         _out("")
         _out(sink.summary())
