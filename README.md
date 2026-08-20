@@ -1,13 +1,14 @@
 # Nodus
 
 **A tiny local planner that turns a natural-language task into an ordered
-sequence of tool calls — and an observability layer that streams every step
-into Grafana Cloud.**
+sequence of tool calls — with media & entertainment workflows, Google Cloud
+delivery, and an observability layer that streams every step into Grafana
+Cloud.**
 
 > Nodus is a research planner developed for a 324M-parameter model (trained
 > locally, runs on CPU or a single GPU). The planner outputs **only tool names**
 > — no arguments, no replanning. The harness fills the arguments, verifies each
-> step, and executes.
+> step, executes, and **delivers** the final artifact (Google Cloud Storage).
 
 ---
 
@@ -85,30 +86,40 @@ NODUS_GRAFANA=jsonl:run.jsonl python nodus_agent.py "..." --plan --plan-source n
 ## Run the demo (30 seconds, zero dependencies)
 
 `demo_agentic_cinema.py` replays the full pipeline end to end — task → plan →
-tools → Grafana — deterministically, with **no checkpoint, no Ollama, no token**
-required. Add `checkpoints/checkpoint_sft_plan_v5.pt` (or set `NODUS_PLAN_CKPT`)
-and the same command uses the **real 324M planner** instead of the gold plan:
+tools → delivery → Grafana — deterministically, with **no checkpoint, no Ollama,
+no token, no cloud credentials** required. Add
+`checkpoints/checkpoint_sft_plan_v5.pt` (or set `NODUS_PLAN_CKPT`) and the same
+command uses the **real 324M planner** instead of the gold plan:
 
 ```bash
 python demo_agentic_cinema.py                 # plan → tools → timeline
 python demo_agentic_cinema.py --list-tasks    # show the curated demo tasks
+python demo_agentic_cinema.py --task-key media # media workflow (shoot-day brief)
 python demo_agentic_cinema.py --contrast      # plan vs no-plan side by side
 python demo_agentic_cinema.py --live          # real Ollama executor (optional)
 ```
+
+The **media** task is the Agentic Cinema use case: read the script, save the
+shoot-day brief (the script is scene 3) as a new file, **upload it to Google
+Cloud Storage** (`gcs_upload`, mock-first — deterministic `gs://` URI without
+credentials), and verify. The planner keeps its fixed 8-tool vocabulary; GCS
+delivery is a *harness capability* (like the Grafana observability layer).
 
 It streams every step through the same `GrafanaSink` — mock mode prints the
 timeline, `NODUS_GRAFANA=mcp` pushes live annotations to Grafana Cloud:
 
 ```
-▶ task: Read src/utils.py, then save a new file config_demo.yaml with a stub, then verify it exists.
-  ∘ plan [nodus]: ['read_file', 'write_file', 'bash']
-    ↳ tool read_file {"path": "src/utils.py"}
-      ✓ def helper():     return 42
-    ↳ tool write_file {"path": "config_demo.yaml", "content": "# demo stub config\nmode: default\n"}
-      ✓ wrote 33 bytes -> config_demo.yaml
-    ↳ tool bash {"command": "ls config_demo.yaml"}
-      ✓ config_demo.yaml exists
-● result: Done: wrote config_demo.yaml.
+▶ task: Read script.txt, then save a new file shoot_day_brief.md with the shoot-day brief, then upload it to Google Cloud Storage, then verify.
+  ∘ plan [nodus]: ['read_file', 'write_file', 'bash', 'gcs_upload']
+    ↳ tool read_file {"path": "script.txt"}
+      ✓ SCENE 3  INT. EDIT BAY — DAY  The editor pulls up the dailies…
+    ↳ tool write_file {"path": "shoot_day_brief.md", "content": "# Shoot-day brief — Scene 3…"}
+      ✓ wrote 244 bytes -> shoot_day_brief.md
+    ↳ tool bash {"command": "ls"}
+      ✓ script.txt  shoot_day_brief.md
+    ↳ tool gcs_upload {"local_path": "shoot_day_brief.md", "destination": "production/shoot_day_brief.md", "bucket": "nodus-media-demo"}
+      ✓ gs://nodus-media-demo/production/shoot_day_brief.md (253 bytes) [mock]
+● result: Done: wrote shoot_day_brief.md; uploaded production/shoot_day_brief.md.
 ```
 
 ### Grafana Cloud live setup (one time)
@@ -125,6 +136,52 @@ timeline, `NODUS_GRAFANA=mcp` pushes live annotations to Grafana Cloud:
 
 ---
 
+## Google Cloud: Gemini executor + Cloud Storage delivery
+
+Nodus is powered by Google Cloud in two places — both imported and called in
+**code** at runtime, both mock-first:
+
+1. **Gemini as an executor** — any model id prefixed with `gemini:` routes the
+   ReAct loop through the official `google-genai` SDK with native function
+   calling (the same normalized message format every other backend speaks):
+
+   ```bash
+   export GEMINI_API_KEY=...
+   python nodus_agent.py "Read script.txt, then write the shoot-day brief, then upload it" \
+     --plan --plan-source nodus --model gemini:gemini-2.0-flash
+   ```
+
+   *Optional: `pip install google-genai`. Without the package, the run fails
+   loudly only if you actually request a `gemini:` model.*
+
+2. **`gcs_upload` — deliver the produced asset to Cloud Storage** — the final
+   step of the media workflow. Deterministic mock by default (no credentials,
+   no network); real upload via the official `google-cloud-storage` SDK when
+   credentials are present:
+
+   ```bash
+   # mock (default): deterministic gs:// URI, no credentials
+   NODUS_GCLOUD=mock python demo_agentic_cinema.py --task-key media
+
+   # real: Google Cloud Storage upload via ADC
+   $env:GCLOUD_BUCKET = "nodus-media-demo"
+   $env:GOOGLE_APPLICATION_CREDENTIALS = "service-account.json"
+   $env:NODUS_GCLOUD = "real"
+   python demo_agentic_cinema.py --task-key media
+   ```
+
+   *Optional: `pip install google-cloud-storage`. `gcs_upload` is a **harness
+   capability tool** — the 324M planner keeps its fixed 8-tool vocabulary; the
+   harness delivers the final artifact (exactly like the Grafana observability
+   layer). A failed upload is never fatal to a run (silent fallback + counter).*
+
+**Why mock-first?** The whole demo runs with zero credentials — deterministic
+and CI-friendly — while the *real* SDK code path is exercised the moment
+`NODUS_GCLOUD=real` and ADC credentials exist. No fake data: a `[mock]` marker
+on every `gs://` URI makes the mode explicit.
+
+---
+
 ## Repository layout
 
 ```
@@ -135,11 +192,14 @@ nodus_gpt.py         transformer core (RoPE, RMSNorm)
 nodus_agent.py       ReAct executor loop (fills args, verifies, executes)
 nodus_verify.py      guardrails: normalize + 7 predicates + transformations
 nodus_grafana.py     Grafana Cloud telemetry sink (mock / mcp / off)
+nodus_gcloud.py      Google Cloud Storage delivery (mock / real / off)
 nodus_mcp_client.py  multi-server MCP registry (namespacing, pinning)
-demo_agentic_cinema.py  self-contained demo: task → plan → tools → Grafana
+nodus_backends.py    multi-backend executors: Ollama · DeepSeek · OpenRouter ·
+                     Anthropic · Gemini (gemini: prefix, google-genai)
+demo_agentic_cinema.py  self-contained demo: task → plan → tools → GCS → Grafana
 video_script_3min.md    3-minute narration script for the hackathon video
 devpost_draft.md        Devpost submission draft (copy-paste ready)
-tests/             921 passing tests (pytest)
+tests/             953 passing tests (pytest)
 ```
 
 ### Guardrails (why 99% is real)
@@ -177,17 +237,19 @@ regressions — a decisive improvement over the previous planner (91%).
 ## Tests
 
 ```bash
-python -m pytest tests/        # 921 passed
+python -m pytest tests/        # 953 passed
 ```
 
 ---
 
 ## License
 
-Copyright © 2024 Temple IAM — All Rights Reserved.
-See individual file headers. Contact the maintainers before commercial use.
+Released under the **MIT License** — see [LICENSE](LICENSE). The AI-generated
+assets in the repo (video script, Devpost draft, gallery image) are included
+under the same license.
 
 ---
 
-*Prepared for the Agentic Cinema hackathon (Google Cloud + partners). Partner
-service activated: Grafana Cloud MCP (`mcp-grafana`).*
+*Prepared for the Agentic Cinema hackathon (Google Cloud + partners).
+Google Cloud: Gemini executor (`google-genai`) + Cloud Storage delivery
+(`gcs_upload`). Partner service: Grafana Cloud MCP (`mcp-grafana`).*

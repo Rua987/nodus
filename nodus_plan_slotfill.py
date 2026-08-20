@@ -30,6 +30,7 @@ PRIMARY_ARG = {
     "grep": "pattern",
     "web_fetch": "url",
     "brave_search": "query",
+    "gcs_upload": "local_path",
 }
 
 _SLOT_PROMPT = """\

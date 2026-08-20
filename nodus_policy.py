@@ -29,13 +29,16 @@ from nodus_backends import detect_backend
 
 # ── Outils classés lecture / écriture ─────────────────────────────────────────
 READ_TOOLS  = frozenset({"read_file", "glob", "grep"})
-WRITE_TOOLS = frozenset({"write_file", "edit_file"})
+# gcs_upload : outil de LIVRAISON (déposer l'artefact produit sur Cloud Storage)
+# — il "écrit" dans l'univers du harnais, donc compté comme action/écriture.
+WRITE_TOOLS = frozenset({"write_file", "edit_file", "gcs_upload"})
 # Outils d'analyse sans livraison : comptent dans le read_budget cloud.
 # bash inclus : les modèles sondent via python -c au lieu d'écrire (observé JSON phase 2).
 ANALYSIS_TOOLS = READ_TOOLS | frozenset({"bash"})
-# Outils qui peuvent MUTER le système de fichiers (write/edit + bash). Sert au
-# détecteur anti-thrash : un round "actif" est un round qui a appelé l'un d'eux.
-# (bash inclus car un modèle peut écrire/éditer/dumper via shell, hors WRITE_TOOLS.)
+# Outils qui peuvent MUTER le système de fichiers (write/edit + bash + upload).
+# Sert au détecteur anti-thrash : un round "actif" est un round qui a appelé
+# l'un d'eux. (bash inclus car un modèle peut écrire/éditer/dumper via shell,
+# hors WRITE_TOOLS.)
 MUTATING_TOOLS = WRITE_TOOLS | frozenset({"bash"})
 
 # Plafond de relances "force l'écriture" par tâche (anti-spam).

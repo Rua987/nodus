@@ -20,7 +20,7 @@ def _sink() -> GrafanaSink:
 # ── Tâches curées ──────────────────────────────────────────────────────────
 
 def test_demo_tasks_have_plans():
-    assert set(demo.DEMO_TASKS) == {"inspect", "tune", "create"}
+    assert set(demo.DEMO_TASKS) == {"inspect", "tune", "create", "media"}
     for spec in demo.DEMO_TASKS.values():
         assert spec["task"]
         assert isinstance(spec["plan"], list) and len(spec["plan"]) >= 1
@@ -29,7 +29,9 @@ def test_demo_tasks_have_plans():
 
 
 def test_gold_plans_use_only_allowed_tools():
-    allowed = {"bash", "read_file", "write_file", "edit_file", "glob", "grep", "web_fetch", "brave_search"}
+    # 8 outils natifs + gcs_upload (capability tool de livraison, côté harnais).
+    allowed = {"bash", "read_file", "write_file", "edit_file", "glob", "grep",
+               "web_fetch", "brave_search", "gcs_upload"}
     for spec in demo.DEMO_TASKS.values():
         for name, _ in spec["plan"]:
             assert name in allowed
@@ -113,6 +115,32 @@ def test_run_demo_uses_real_nodus_when_available(monkeypatch):
     calls = [e for e in sink.events if e["kind"] == "tool_call"]
     assert calls[0]["name"] == "grep" and "pattern" in json.loads(calls[0]["args"])
     assert "debug: false" in meta["workspace"]["config.yaml"]
+    sink.close()
+
+
+def test_run_demo_media_gold_delivers_to_gcs(monkeypatch):
+    monkeypatch.setattr(demo, "_real_nodus_plan", lambda task: None)
+    sink = _sink()
+    meta = demo.run_demo(sink, task_key="media", use_real_nodus=True)
+    plan_evt = next(e for e in sink.events if e["kind"] == "plan")
+    assert plan_evt["names"] == ["read_file", "write_file", "gcs_upload", "bash"]
+    calls = [e for e in sink.events if e["kind"] == "tool_call"]
+    assert any(e["name"] == "gcs_upload" for e in calls)
+    assert "gs://nodus-media-demo/production/shoot_day_brief.md" in sink.summary()
+    assert "uploaded production/shoot_day_brief.md" in meta["summary"]
+    sink.close()
+
+
+def test_run_demo_media_real_nodus_appends_gcs_delivery(monkeypatch):
+    # Le 324M émet ses 3 outils (pas gcs_upload) → le harnais append la livraison.
+    monkeypatch.setattr(demo, "_real_nodus_plan",
+                        lambda task: ["read_file", "write_file", "bash"])
+    sink = _sink()
+    meta = demo.run_demo(sink, task_key="media", use_real_nodus=True)
+    plan_evt = next(e for e in sink.events if e["kind"] == "plan")
+    assert plan_evt["names"] == ["read_file", "write_file", "bash", "gcs_upload"]
+    calls = [e for e in sink.events if e["kind"] == "tool_call"]
+    assert calls[-1]["name"] == "gcs_upload"
     sink.close()
 
 

@@ -1335,8 +1335,9 @@ class TestWebFetchSSRF:
 # ── TOOL_SCHEMAS ───────────────────────────────────────────────────────────────
 
 class TestToolSchemas:
-    def test_has_eight_schemas(self):
-        assert len(TOOL_SCHEMAS) == 8
+    def test_has_nine_schemas(self):
+        # 8 natifs + gcs_upload (capability tool de livraison, côté harnais).
+        assert len(TOOL_SCHEMAS) == 9
 
     def test_all_schemas_have_function_key(self):
         for schema in TOOL_SCHEMAS:
@@ -1349,6 +1350,7 @@ class TestToolSchemas:
         assert names == {
             "bash", "read_file", "edit_file", "write_file",
             "glob", "grep", "web_fetch", "brave_search",
+            "gcs_upload",
         }
 
 

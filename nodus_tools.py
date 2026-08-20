@@ -26,6 +26,9 @@ from urllib.parse import urlparse, urljoin, urlunparse
 
 import requests
 
+# ── GCS (Google Cloud Storage) — livraison d'artefacts (mock-first, léger) ────
+from nodus_gcloud import gcs_from_env  # noqa: E402
+
 # ── Brave Search — clé API lue depuis .brave_api_key (jamais hardcodée) ───────
 _BRAVE_KEY_FILE = Path(__file__).parent / ".brave_api_key"
 BRAVE_API_KEY: Optional[str] = (
@@ -926,6 +929,43 @@ def tool_brave_search(query: str, count: int = 5, api_key: Optional[str] = None)
         return ToolResult(success=False, output="", error=str(e))
 
 
+# ── 9. GCS Upload Tool (livraison d'artefacts, mock-first) ────────────────────
+
+def tool_gcs_upload(
+    local_path: Optional[str] = None,
+    destination: Optional[str] = None,
+    bucket: Optional[str] = None,
+    content: Optional[str] = None,
+) -> ToolResult:
+    """Upload un artefact produit vers Google Cloud Storage.
+
+    Outil de LIVRAISON du harnais (comme l'observabilité Grafana) : le planneur
+    324M garde son vocabulaire de 8 outils — c'est l'exécuteur qui dépose le
+    produit final via ce capability tool.
+
+    Mock-first : sans creds (`NODUS_GCLOUD` non `real`), retourne une URI
+    `gs://…` déterministe sans réseau. Avec `GCLOUD_BUCKET` +
+    `GOOGLE_APPLICATION_CREDENTIALS` et `NODUS_GCLOUD=real`, upload réel via le
+    SDK officiel `google-cloud-storage`. Jamais fatal : un échec cloud est
+    retourné comme ToolResult(success=False), pas une exception.
+
+    Args:
+        local_path:  Chemin du fichier local à uploader (ancré par le harnais).
+        destination: Chemin objet dans le bucket (ex "production/brief.md").
+        bucket:      Bucket cible (défaut : GCLOUD_BUCKET).
+        content:     Alternative à local_path : texte à uploader directement.
+
+    Returns:
+        ToolResult avec l'URI gs:// en output sur succès.
+    """
+    with gcs_from_env() as client:
+        ok, out = client.upload(
+            local_path=local_path, destination=destination,
+            bucket=bucket, content=content,
+        )
+    return ToolResult(success=ok, output=out, error=None if ok else out)
+
+
 # ── Schémas JSON Schema (OpenAI-compatible pour Ollama /api/chat) ─────────────
 
 TOOL_SCHEMAS = [
@@ -1092,6 +1132,40 @@ TOOL_SCHEMAS = [
                     },
                 },
                 "required": ["query"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "gcs_upload",
+            "description": (
+                "Uploads a produced asset (file) to Google Cloud Storage and returns the gs:// URI. "
+                "Use as the final DELIVERY step after writing the deliverable. "
+                "Either local_path (file on disk) or content (text) plus a destination object path. "
+                "Runs in deterministic mock mode when no credentials are set (default)."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "local_path": {
+                        "type": "string",
+                        "description": "Absolute path of the local file to upload",
+                    },
+                    "destination": {
+                        "type": "string",
+                        "description": "Object path inside the bucket (e.g. 'production/shoot_day_brief.md')",
+                    },
+                    "bucket": {
+                        "type": "string",
+                        "description": "Bucket name (default: GCLOUD_BUCKET env)",
+                    },
+                    "content": {
+                        "type": "string",
+                        "description": "Alternative to local_path: text to upload directly",
+                    },
+                },
+                "required": ["destination"],
             },
         },
     },
@@ -1460,6 +1534,17 @@ def _dispatch_tool(name: str, args: dict, cwd: Optional[str] = None) -> ToolResu
 
         if name == "brave_search":
             return tool_brave_search(args["query"], args.get("count", 5))
+
+        if name == "gcs_upload":
+            lp, err = _confine(args.get("local_path") or "", cwd)
+            if err:
+                return ToolResult(success=False, output="", error=err)
+            return tool_gcs_upload(
+                local_path=lp or None,
+                destination=args.get("destination", ""),
+                bucket=args.get("bucket"),
+                content=args.get("content"),
+            )
 
         return ToolResult(success=False, output="", error=f"Unknown tool: {name}")
 

@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Generate the Devpost gallery image (1600x900 PNG) from the REAL live run.
+Generate the Devpost gallery image (1600x900 PNG) from a real run.
 
-The content is the actual output of a live end-to-end run captured in
-`capture_live.txt`:
-  - plan:  real NODUS 324M (checkpoint v5)  -> ['read_file','write_file','bash']
-  - exec:  real hermes3:8b via Ollama, writing real files in the sandbox
+The content is the actual output of the media workflow run (real NODUS 324M
+planner, checkpoint v5):
+  - task:  the Agentic Cinema media task (read the script, save the shoot-day
+           brief, deliver it to Google Cloud Storage, verify)
+  - plan:  real 324M -> ['read_file','write_file','bash'] + harness delivery
+           `gcs_upload` (capability tool — the 8-tool vocabulary is untouched)
+  - exec:  harness fills the args, executes, verifies (GCS mock-first)
   - obs:   every event -> a Grafana Cloud annotation (mock timeline shown)
 
 Layout is MEASURED: every string is fitted to its box before drawing and a
@@ -57,19 +60,22 @@ F_MONO_B  = _f("consolab.ttf", 16)
 F_TINY    = _f("segoeui.ttf", 13)
 F_TINY_B  = _f("seguisb.ttf", 13)
 
-# ── Real live-run content (captured from capture_live.txt, 2026-08-19) ────
-RUN_TASK = ("Read src/utils.py, then save a new file config_demo.yaml with a "
-            "stub, then verify it exists.")
-RUN_PLAN = ["read_file", "write_file", "bash"]
+# ── Real-run content: real 324M planner (ckpt v5) + harness execution ───────
+# (demo_agentic_cinema.py --task-key media with NODUS_PLAN_CKPT set; GCS mock)
+RUN_TASK = ("Read script.txt, then save a new file shoot_day_brief.md with the "
+            "shoot-day brief, then upload it to Google Cloud Storage, then verify.")
+RUN_PLAN = ["read_file", "write_file", "bash", "gcs_upload"]
 RUN_STEPS = [
-    ("read_file", '{"file_path": "src/utils.py", "limit": 10}',
-     "1 def helper():  |  2 return 42"),
-    ("write_file", '{"file_path": "config_demo.yaml", "content": "stub…"}',
-     "wrote config_demo.yaml (26 chars)"),
-    ("read_file", '{"file_path": "config_demo.yaml"}',
-     "1 stub_content: 'stub-value'"),
+    ("read_file", '{"path": "script.txt"}',
+     "SCENE 3  INT. EDIT BAY — DAY"),
+    ("write_file", '{"path": "shoot_day_brief.md", …}',
+     "wrote 244 bytes -> shoot_day_brief.md"),
+    ("bash", '{"command": "ls"}',
+     "script.txt  shoot_day_brief.md"),
+    ("gcs_upload", '{"local_path": "shoot_day_brief.md", …}',
+     "gs://nodus-media-demo/production/shoot_day_brief.md (253 bytes) [mock]"),
 ]
-RUN_RESULT = "The file config_demo.yaml was successfully created and verified."
+RUN_RESULT = "Done: wrote shoot_day_brief.md; uploaded production/shoot_day_brief.md."
 
 # ── Measured-layout plumbing ──────────────────────────────────────────────
 DRAWN = []  # (label, x0, y0, x1, y1) — ink boxes of everything drawn
@@ -160,9 +166,10 @@ def main() -> int:
     txt(d, 110, 72, "a tiny local planner · free agentic planning, observable",
         F_SUB, INK_SOFT, label="subtitle")
     d.line([48, 94, W - 48, 94], fill=BORDER, width=1)
-    # header chips
+    # header chips (brand hues, not data series)
+    GOOGLE_BLUE = (66, 133, 244)  # #4285f4
     chip(d, W - 300, 42, "Grafana Cloud · MCP", F_CHIP, (255, 176, 102), (54, 30, 6))
-    chip(d, W - 300, 72, "324M params · laptop CPU", F_CHIP, INK_SOFT, RAISED)
+    chip(d, W - 300, 72, "Google Cloud · Gemini + GCS", F_CHIP, ON_HUE, GOOGLE_BLUE)
 
     # ── Panels ────────────────────────────────────────────────────────────
     LX, LY, LPW = 40, 112, 850
@@ -191,11 +198,12 @@ def main() -> int:
     badge(d, PX + 14, py, "∘", "PLAN", C_PLAN)
     txt(d, PX + 14, py + 24, "real 324M planner → ordered tool names (harness fills the args)",
         F_TINY, INK_MUTED, label="plan-note", maxw=PX1 - PX - 28)
-    # tool chips with arrows
+    # tool chips with arrows (fixed categorical order, never cycled)
+    PLAN_HUES = [C_TASK, C_PLAN, C_CALL, C_RES]
     hx = PX + 14
     hy = py + 52
     for i, t in enumerate(RUN_PLAN):
-        endx = chip(d, hx, hy, t, F_CHIP, ON_HUE, C_TASK if i == 0 else C_PLAN if i == 1 else C_CALL)
+        endx = chip(d, hx, hy, t, F_CHIP, ON_HUE, PLAN_HUES[i])
         if i < len(RUN_PLAN) - 1:
             arrow_x0, arrow_x1 = endx + 12, endx + 32
             d.line([arrow_x0, hy, arrow_x1 - 8, hy], fill=INK_MUTED, width=2)
@@ -206,7 +214,7 @@ def main() -> int:
 
     # execution rows
     ey = py + 84
-    txt(d, PX + 14, ey, "EXECUTION  ·  hermes3:8b via Ollama",
+    txt(d, PX + 14, ey, "EXECUTION  ·  harness fills the args · mock-first delivery",
         F_TINY_B, INK_MUTED, label="exec-header")
     row_h = 46
     ry = ey + 26
@@ -284,7 +292,7 @@ def main() -> int:
     stats = [
         ("99%",  "plans correct · 120 unseen tasks", C_TASK),
         ("p = 0.0139", "sign test — plan helps e2e", GREEN),
-        ("921",  "tests passing", C_CALL),
+        ("953",  "tests passing", C_CALL),
     ]
     gap = 90
     widths = [max(d.textlength(big, font=F_TITLE), d.textlength(sub, font=F_TINY)) for big, sub, _ in stats]

@@ -1,6 +1,6 @@
 # Nodus — 3-minute video narration script
 
-**Format** : screen recording + voice-over. ~443 spoken words ≈ 3 min at
+**Format** : screen recording + voice-over. ~460 spoken words ≈ 3 min at
 140 wpm. Timeline is a target; each segment is independent so you can trim
 any segment without breaking the others.
 
@@ -8,9 +8,9 @@ any segment without breaking the others.
 ```bash
 # UTF-8 terminal so the timeline glyphs (→ ✓ ∘ ↳ ●) render correctly
 # (Git Bash / Windows Terminal / VS Code all work; cmd.exe: chcp 65001)
-python demo_agentic_cinema.py                # the "with plan" timeline
-python demo_agentic_cinema.py --contrast     # plan vs no-plan side by side
-python demo_agentic_cinema.py --list-tasks   # for the intro card
+python demo_agentic_cinema.py --task-key media   # the media demo timeline
+python demo_agentic_cinema.py --contrast         # plan vs no-plan side by side
+python demo_agentic_cinema.py --list-tasks       # for the intro card
 ```
 If `checkpoints/checkpoint_sft_plan_v5.pt` is present the demo uses the
 **real 324M planner** (plan source: `[nodus]`); otherwise the gold plan
@@ -49,20 +49,21 @@ the screen glitches and cuts to the title card **NODUS — a tiny local planner*
 
 ---
 
-## Segment 3 — 0:55 → 1:45 · "The demo"
+## Segment 3 — 0:55 → 1:45 · "The demo — a media workflow"
 
-**Visual** : live record `python demo_agentic_cinema.py`. Pause ~1s per line as
-the timeline appears; hover the cursor over the plan line, then the ✓ results.
+**Visual** : live record `python demo_agentic_cinema.py --task-key media`.
+Pause ~1s per line as the timeline appears; hover the cursor over the plan
+line, the gs:// upload URI, then the ✓ results.
 
-**Narration** (≈ 102 words):
-> Here's the whole pipeline, end to end. A task arrives. The planner answers
-> in tool names: read, write, bash. The harness takes over — fills the
-> arguments, runs each step, verifies the result. Read the utility file.
-> Create the config stub. Verify it exists. Every one of these events streams
-> to Grafana Cloud as a live annotation — the dashboard becomes the agent's
-> scope. Now watch what happens without a plan: the executor ad-libs three
-> bash commands and creates nothing. With a plan, the same task completes in
-> three steps. That gap is the product.
+**Narration** (≈ 108 words):
+> Here's the whole pipeline, end to end — on a real media workflow. A task
+> arrives: read the script, write the shoot-day brief for scene three, and
+> deliver it to Google Cloud Storage. The planner answers in tool names: read,
+> write, upload. The harness takes over — fills the arguments, runs each step,
+> verifies the result. Read the script. Write the brief. Upload it — here's the
+> gs:// URI, delivered. Every one of these events streams to Grafana Cloud as a
+> live annotation, so the dashboard becomes the agent's scope. With a plan, the
+> whole media task completes in four steps. That is the product.
 
 ---
 
@@ -82,34 +83,36 @@ then the sign-test table — plan better 27 · plan worse 11 · p = 0.0139.
 
 ---
 
-## Segment 5 — 2:20 → 2:45 · "Grafana Cloud"
+## Segment 5 — 2:20 → 2:45 · "Google Cloud delivery + Grafana Cloud"
 
-**Visual** : split screen. Left: the demo timeline from segment 3, but as the
-raw event stream — `task → plan → tool_call → tool_result → result`, each line
-carrying its `kind` tag (`nodus:task`, `nodus:plan`, …). Right: the wiring —
-`NODUS_GRAFANA=mcp` → the `mcp-grafana` server → a `create_annotation` call.
-Small overlay card: "every event → a tagged Grafana Cloud annotation · add
-`GRAFANA_URL` + a service-account token to make it live".
+**Visual** : split screen. Left: the `gcs_upload` line from segment 3, zoomed —
+`gcs_upload` → `gs://nodus-media-demo/production/shoot_day_brief.md [mock]`,
+plus the wiring `NODUS_GCLOUD=real` → `google-cloud-storage` SDK →
+`GCLOUD_BUCKET` + ADC. Small overlay card: "mock-first: no credentials needed —
+the real SDK path activates with `NODUS_GCLOUD=real`". Right: the event stream
+`task → plan → tool_call → tool_result → result` carrying `kind` tags
+(`nodus:task`, `nodus:plan`, …) → `mcp-grafana` server → `create_annotation`.
 
-**Narration** (≈ 61 words):
-> Every run produces this exact event stream — task, plan, every tool call and
-> result, tagged and timestamped. Nodus activates Grafana Cloud through the
-> official MCP server: each event becomes a tagged annotation, so a session is
-> replayable, correlatable, auditable. Point it at your Grafana with a
-> service-account token, and the stream lands live in your dashboard.
+**Narration** (≈ 72 words):
+> Delivery is powered by Google Cloud. The upload tool calls the official Cloud
+> Storage SDK when credentials are present, and prints an honest, deterministic
+> mock URI when they're not — so the demo runs with zero setup. In parallel,
+> every event — task, plan, every tool call and result — is tagged and streamed
+> to Grafana Cloud through the official MCP server. Point it at your Grafana,
+> and the whole run lands live in your dashboard.
 
 ---
 
 ## Segment 6 — 2:45 → 3:00 · "Close"
 
 **Visual** : repo card `github.com/Rua987/nodus`, the README headline
-("119/120 · 99%"), a test run ending `921 passed`.
+("119/120 · 99%"), a test run ending `900+ passed`, the MIT LICENSE badge.
 
 **Narration** (≈ 53 words):
-> Nodus is open source. Nine hundred and twenty-one tests passing, and a
+> Nodus is open source — MIT licensed. Nine hundred-plus tests passing, and a
 > checkpoint you can drop in and run on a laptop CPU. If you want your agent to
-> plan for free — and to watch every step it takes — clone the repo, and let it
-> think. Thank you.
+> plan for free, deliver to the cloud, and watch every step — clone the repo,
+> and let it think. Thank you.
 
 ---
 
@@ -119,10 +122,10 @@ Small overlay card: "every event → a tagged Grafana Cloud annotation · add
 |---|---|---|
 | 0:00 | agent flails + cost meter → title card | Segment 1 |
 | 0:25 | split screen: task → model card → plan | Segment 2 |
-| 0:55 | live `demo_agentic_cinema.py` timeline | Segment 3 |
+| 0:55 | live `--task-key media` timeline (read → write → gs:// upload → verify) | Segment 3 |
 | 1:45 | metric cards: 99% then p=0.0139 table | Segment 4 |
-| 2:20 | event stream → Grafana MCP mapping (split screen) | Segment 5 |
-| 2:45 | repo card + `921 passed` | Segment 6 |
+| 2:20 | GCS delivery + event stream → Grafana MCP mapping (split screen) | Segment 5 |
+| 2:45 | repo card + `900+ passed` + MIT badge | Segment 6 |
 
 **Production notes**
 - Record at 1080p, 30 fps; keep a 1–2 s hold on every visual before narration

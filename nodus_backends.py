@@ -36,6 +36,7 @@ ANTHROPIC_VERSION = "2023-06-01"
 API_TIMEOUT       = 300
 ANTHROPIC_MAX_TOKENS = 4096
 OPENROUTER_PREFIX = "openrouter/"
+GEMINI_PREFIX = "gemini:"
 
 _HERE = Path(__file__).parent.resolve()
 
@@ -50,6 +51,7 @@ def detect_backend(model: str) -> str:
         - "openrouter/*"                   → "openrouter" (préfixe explicite)
         - "claude-*"                       → "anthropic"
         - "deepseek-chat" / "deepseek-reasoner" → "deepseek" (noms API exacts)
+        - "gemini:*"                       → "gemini" (préfixe explicite)
         - tout le reste (qwen3.5:2b, granite4.1:3b, deepseek-coder:latest, …)
                                            → "ollama"
 
@@ -57,7 +59,7 @@ def detect_backend(model: str) -> str:
         model: Nom du modèle
 
     Returns:
-        "ollama" | "deepseek" | "anthropic" | "openrouter"
+        "ollama" | "deepseek" | "anthropic" | "openrouter" | "gemini"
 
     Example:
         >>> detect_backend("openrouter/anthropic/claude-3.5-sonnet")
@@ -66,6 +68,8 @@ def detect_backend(model: str) -> str:
         'anthropic'
         >>> detect_backend("deepseek-chat")
         'deepseek'
+        >>> detect_backend("gemini:gemini-2.0-flash")
+        'gemini'
         >>> detect_backend("qwen3.5:2b")
         'ollama'
         >>> detect_backend("deepseek-coder:latest")
@@ -78,6 +82,8 @@ def detect_backend(model: str) -> str:
         return "anthropic"
     if name in ("deepseek-chat", "deepseek-reasoner"):
         return "deepseek"
+    if name.startswith(GEMINI_PREFIX):
+        return "gemini"
     return "ollama"
 
 
@@ -393,11 +399,227 @@ def _chat_anthropic(messages: list, model: str, tools: Optional[list]) -> dict:
     return _from_anthropic_response(resp.json())
 
 
+# ── Backend Gemini (traduction de format, SDK google-genai) ───────────────────
+
+def _gemini_model_id(model: str) -> str:
+    """
+    Retire le préfixe 'gemini:' pour obtenir l'id de modèle réel.
+
+    Fonction pure (préserve la casse de l'id réel).
+
+    Args:
+        model: Nom complet (ex: 'gemini:gemini-2.0-flash')
+
+    Returns:
+        Id de modèle Gemini (ex: 'gemini-2.0-flash').
+
+    Example:
+        >>> _gemini_model_id("gemini:gemini-2.0-flash")
+        'gemini-2.0-flash'
+        >>> _gemini_model_id("plain-model")
+        'plain-model'
+    """
+    if model.lower().startswith(GEMINI_PREFIX):
+        return model[len(GEMINI_PREFIX):]
+    return model
+
+
+def _to_gemini_contents(messages: list) -> Tuple[str, list]:
+    """
+    Convertit l'historique Ollama-style vers (system, contents) Gemini.
+
+    - role system            → chaîne system (param system_instruction séparé)
+    - role user (str)        → Content(role="user", parts=[Part(text=…)])
+    - role assistant         → Content(role="model") : blocs text + function_call
+                               (depuis tool_calls) ; id → nom mémorisé pour
+                               associer les résultats d'outil
+    - role tool              → Content(role="user") : Part(function_response=…)
+                               avec le NOM de la fonction d'origine (Gemini
+                               l'exige, contrairement à OpenAI/Anthropic)
+
+    Args:
+        messages: Historique (format Ollama)
+
+    Returns:
+        Tuple (system_str, gemini_contents).
+    """
+    system_parts: List[str] = []
+    contents: list = []
+    fn_by_call_id: Dict[str, str] = {}
+
+    # Import tardif du paquet types (levé à l'appel, pas à l'import du module).
+    from google.genai import types
+
+    for m in messages:
+        role = m.get("role")
+        content = m.get("content") or ""
+        if role == "system":
+            if content:
+                system_parts.append(content)
+        elif role == "user":
+            contents.append(types.Content(
+                role="user", parts=[types.Part(text=content)],
+            ))
+        elif role == "assistant":
+            parts: list = []
+            if content:
+                parts.append(types.Part(text=content))
+            for tc in m.get("tool_calls") or []:
+                fn = tc.get("function", {})
+                name = fn.get("name", "")
+                args = fn.get("arguments", {})
+                if isinstance(args, str):
+                    try:
+                        args = json.loads(args)
+                    except json.JSONDecodeError:
+                        args = {"_raw": args}
+                cid = tc.get("id", f"call_{len(fn_by_call_id)}")
+                fn_by_call_id[cid] = name
+                parts.append(types.Part(
+                    function_call=types.FunctionCall(name=name, args=args or {}),
+                ))
+            contents.append(types.Content(
+                role="model", parts=parts or [types.Part(text="")],
+            ))
+        elif role == "tool":
+            cid = m.get("tool_call_id", "")
+            name = fn_by_call_id.get(cid, m.get("name", "?"))
+            contents.append(types.Content(
+                role="user",
+                parts=[types.Part(function_response=types.FunctionResponse(
+                    name=name,
+                    response={"output": content, "success": m.get("success", True)},
+                ))],
+            ))
+    return "\n\n".join(system_parts), contents
+
+
+def _to_gemini_tools(tools: Optional[list]) -> Optional[list]:
+    """
+    Convertit des tools OpenAI vers le format Gemini (function_declarations).
+
+    OpenAI:   {type:function, function:{name, description, parameters}}
+    Gemini:   types.Tool(function_declarations=[FunctionDeclaration(name,
+              description, parameters)])
+
+    Args:
+        tools: Liste de tools OpenAI (ou None)
+
+    Returns:
+        Liste [types.Tool] Gemini (None si aucun tool).
+    """
+    if not tools:
+        return None
+    from google.genai import types
+
+    declarations = []
+    for t in tools:
+        fn = t.get("function", {})
+        declarations.append(types.FunctionDeclaration(
+            name=fn.get("name", ""),
+            description=fn.get("description", ""),
+            parameters=fn.get("parameters", {"type": "object", "properties": {}}),
+        ))
+    return [types.Tool(function_declarations=declarations)] if declarations else None
+
+
+def _from_gemini_response(resp) -> dict:
+    """
+    Normalise une réponse Gemini vers le format de la boucle.
+
+    Gemini renvoie candidates[0].content.parts = [Part(text=…),
+    Part(function_call=FunctionCall(name, args))]. On reconstruit un message
+    assistant Ollama-style (arguments en dict, comme Anthropic — la boucle
+    accepte str JSON ou dict).
+
+    Args:
+        resp: Objet réponse google.genai GenerateContentResponse
+
+    Returns:
+        Message assistant normalisé.
+    """
+    cands = getattr(resp, "candidates", None) or []
+    if not cands:
+        return {"role": "assistant", "content": ""}
+    parts = getattr(getattr(cands[0], "content", None), "parts", None) or []
+    text_parts: List[str] = []
+    tool_calls: List[dict] = []
+    for part in parts:
+        text = getattr(part, "text", None)
+        if text:
+            text_parts.append(text)
+        fc = getattr(part, "function_call", None)
+        if fc is not None:
+            args: dict = {}
+            raw_args = getattr(fc, "args", None)
+            if raw_args:
+                try:
+                    args = dict(raw_args)
+                except Exception:
+                    args = {"_raw": str(raw_args)}
+            tool_calls.append({
+                "id": getattr(fc, "id", None) or f"call_{len(tool_calls)}",
+                "function": {"name": getattr(fc, "name", ""), "arguments": args},
+            })
+    normalized = {"role": "assistant", "content": "".join(text_parts)}
+    if tool_calls:
+        normalized["tool_calls"] = tool_calls
+    return normalized
+
+
+def _chat_gemini(messages: list, model: str, tools: Optional[list]) -> dict:
+    """
+    Appel Gemini (SDK officiel google-genai, fonction calling native).
+
+    Le nom de modèle est préfixé 'gemini:' ; on le retire avant l'appel.
+
+    Args:
+        messages: Historique (format Ollama)
+        model:    Nom du modèle (ex: 'gemini:gemini-2.0-flash')
+        tools:    TOOL_SCHEMAS (format OpenAI)
+
+    Returns:
+        Message assistant normalisé (Ollama-style).
+
+    Raises:
+        RuntimeError: si la clé API ou le paquet google-genai est absent.
+    """
+    api_key = load_api_key("gemini")
+    if not api_key:
+        raise RuntimeError(
+            "Gemini API key missing — create .gemini_api_key or set GEMINI_API_KEY"
+        )
+    try:
+        from google import genai
+    except ImportError:
+        raise RuntimeError(
+            "google-genai package not installed — pip install google-genai"
+        )
+    real_model = _gemini_model_id(model)
+    system, contents = _to_gemini_contents(messages)
+    if not contents:
+        from google.genai import types
+        contents = [types.Content(role="user", parts=[types.Part(text="Continue.")])]
+    gemini_tools = _to_gemini_tools(tools)
+    config: dict = {}
+    if system:
+        config["system_instruction"] = system
+    if gemini_tools:
+        config["tools"] = gemini_tools
+    client = genai.Client(api_key=api_key)
+    resp = client.models.generate_content(
+        model=real_model,
+        contents=contents,
+        config=config,
+    )
+    return _from_gemini_response(resp)
+
+
 # ── Dispatcher ────────────────────────────────────────────────────────────────
 
 def chat_api(messages: list, model: str, tools: Optional[list]) -> dict:
     """
-    Route vers le backend API approprié (DeepSeek ou Anthropic).
+    Route vers le backend API approprié (DeepSeek, OpenRouter, Anthropic, Gemini).
 
     NE gère PAS Ollama (laissé à nodus_agent._chat pour préserver le chemin
     local existant). Appeler uniquement quand detect_backend != "ollama".
@@ -420,4 +642,6 @@ def chat_api(messages: list, model: str, tools: Optional[list]) -> dict:
         return _chat_openrouter(messages, model, tools)
     if backend == "anthropic":
         return _chat_anthropic(messages, model, tools)
+    if backend == "gemini":
+        return _chat_gemini(messages, model, tools)
     raise ValueError(f"chat_api called for non-API backend: {backend}")

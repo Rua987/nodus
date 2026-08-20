@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-NODUS demo — task → plan → tools → Grafana Cloud.
+NODUS demo — task → plan → tools → deliver (Cloud Storage) → Grafana Cloud.
 
 Shows the whole Nodus pipeline end to end, deterministically:
 
-  1. a natural-language task arrives
+  1. a natural-language task arrives (media & entertainment workflows included:
+     the `media` task is a shoot-day brief — read the script, write the brief,
+     deliver it to Google Cloud Storage)
   2. NODUS (the 324M local planner) turns it into an *ordered list of tool
      names* — the real model when `checkpoints/checkpoint_sft_plan_v5.pt` is
      present, a deterministic gold plan otherwise (the demo always runs)
   3. the harness fills the arguments and executes each tool (simulated, zero
-     side effects) then verifies the result
+     side effects) then verifies the result — and delivers the final artifact
+     via `gcs_upload` (Google Cloud Storage, mock-first)
   4. every step is streamed to Grafana Cloud as annotations:
         task → plan → tool_call → tool_result → result
 
@@ -21,10 +24,16 @@ Telemetry is controlled by $NODUS_GRAFANA (see `nodus_grafana.py`):
                                        (needs GRAFANA_URL + GRAFANA_SERVICE_ACCOUNT_TOKEN)
     NODUS_GRAFANA=off                  disable telemetry
 
+GCS delivery is controlled by $NODUS_GCLOUD (see `nodus_gcloud.py`):
+    NODUS_GCLOUD=mock                  deterministic gs:// URIs (default, no creds)
+    NODUS_GCLOUD=real                  real upload (needs GCLOUD_BUCKET +
+                                       GOOGLE_APPLICATION_CREDENTIALS)
+    NODUS_GCLOUD=off                   disable delivery
+
 Usage:
     python demo_agentic_cinema.py                 # default multi-step task
     python demo_agentic_cinema.py --list-tasks    # show the curated tasks
-    python demo_agentic_cinema.py --task-key tune # run a curated task
+    python demo_agentic_cinema.py --task-key media # media workflow (shoot-day brief)
     python demo_agentic_cinema.py --task "Save a new file out.txt with a stub"
     python demo_agentic_cinema.py --contrast      # plan vs no-plan side by side
     python demo_agentic_cinema.py --no-nodus      # force the gold plan (skip real NODUS)
@@ -85,6 +94,42 @@ DEMO_TASKS: Dict[str, dict] = {
         ],
         "workspace": {},
         "note": "single-step create.",
+    },
+    "media": {
+        "task": (
+            "Read script.txt, then save a new file shoot_day_brief.md with the "
+            "shoot-day brief, then upload it to Google Cloud Storage, then verify."
+        ),
+        "plan": [
+            ("read_file", {"path": "script.txt"}),
+            ("write_file", {
+                "path": "shoot_day_brief.md",
+                "content": (
+                    "# Shoot-day brief — Scene 3\n\n"
+                    "INT. EDIT BAY — DAY\n\n"
+                    "- Set: edit bay, 4 monitors, one hero monitor\n"
+                    "- Camera: ARRI ALEXA Mini LF · 35mm lens\n"
+                    "- Call: 06:30 crew · 07:00 first setup · 11:00 wrap\n"
+                    "- Deliverable: dailies → production/shoot_day_brief.md\n"
+                ),
+            }),
+            ("gcs_upload", {
+                "local_path": "shoot_day_brief.md",
+                "destination": "production/shoot_day_brief.md",
+                "bucket": "nodus-media-demo",
+            }),
+            ("bash", {"command": "ls shoot_day_brief.md"}),
+        ],
+        "workspace": {
+            "script.txt": (
+                "SCENE 3\n\n"
+                "INT. EDIT BAY — DAY\n\n"
+                "The editor pulls up the dailies on the hero monitor. "
+                "Sound is rough, picture is clean. (CONTINUES)\n"
+            ),
+        },
+        "note": "media workflow: read the script → write the shoot-day brief → "
+                "deliver to Google Cloud Storage (harness capability) → verify.",
     },
 }
 
@@ -189,13 +234,29 @@ def mock_execute(name: str, args: dict, ws: Dict[str, str]) -> Tuple[bool, str]:
             target = cmd.split()[-1] if len(cmd.split()) > 1 else "."
             if target in ws:
                 return True, f"{target} exists"
-            listing = "src/\nconfig.yaml" if "src/" in ws or "config.yaml" in ws else ""
-            return True, listing or "no files (empty workspace)"
+            return True, "\n".join(sorted(ws)) if ws else "no files (empty workspace)"
         return True, f"[simulated] {cmd}"
     if name == "web_fetch":
         return True, f"[simulated] fetched {args.get('url', '')} (200, 12KB)"
     if name == "brave_search":
         return True, f"[simulated] 5 results for \"{args.get('query', '')}\""
+    if name == "gcs_upload":
+        # Livraison mock-first via le vrai module nodus_gcloud : l'artefact écrit
+        # dans le workspace devient le contenu uploadé (URI gs:// déterministe).
+        from nodus_gcloud import gcs_from_env
+
+        lp = args.get("local_path") or ""
+        content = args.get("content")
+        if content is None and lp and lp in ws:
+            content = ws[lp]
+        with gcs_from_env() as client:
+            ok, out = client.upload(
+                local_path=lp or None,
+                destination=args.get("destination", "production/artifact"),
+                bucket=args.get("bucket"),
+                content=content,
+            )
+        return ok, out
     return False, f"unknown tool {name}"
 
 
@@ -220,7 +281,21 @@ def _default_args(name: str, task: str, ws: Dict[str, str]) -> dict:
     if name == "read_file":
         return {"path": _first_existing_path(task, ws, "src/main.py")}
     if name == "write_file":
-        return {"path": _first_new_path(task, ws, "output_demo.txt"), "content": "# stub generated by Nodus\n"}
+        p = _first_new_path(task, ws, "output_demo.txt")
+        # Le workflow media écrit le vrai shoot-day brief (même livrable que le
+        # plan gold) — pas un stub générique.
+        if "brief" in p or "brief" in task.lower():
+            content = (
+                "# Shoot-day brief — Scene 3\n\n"
+                "INT. EDIT BAY — DAY\n\n"
+                "- Set: edit bay, 4 monitors, one hero monitor\n"
+                "- Camera: ARRI ALEXA Mini LF · 35mm lens\n"
+                "- Call: 06:30 crew · 07:00 first setup · 11:00 wrap\n"
+                "- Deliverable: dailies → production/shoot_day_brief.md\n"
+            )
+        else:
+            content = "# stub generated by Nodus\n"
+        return {"path": p, "content": content}
     if name == "edit_file":
         p = _first_existing_path(task, ws, "config.yaml")
         content = ws.get(p, "")
@@ -241,6 +316,14 @@ def _default_args(name: str, task: str, ws: Dict[str, str]) -> dict:
     if name == "brave_search":
         q = task.replace("search", "").replace("internet", "").strip()[:60] or "agent"
         return {"query": q}
+    if name == "gcs_upload":
+        # Dépose l'artefact que l'étape write_file a produit (nom tiré de la tâche).
+        lp = _first_new_path(task, ws, "shoot_day_brief.md")
+        return {
+            "local_path": lp,
+            "destination": "production/" + lp,
+            "bucket": "nodus-media-demo",
+        }
     return {}
 
 
@@ -252,11 +335,15 @@ def _naive_steps() -> List[Tuple[str, dict]]:
 def _make_answer(task: str, steps: List[Tuple[str, dict]], ws: Dict[str, str]) -> str:
     wrote = [a.get("path", "") for n, a in steps if n == "write_file" and a.get("path") in ws]
     edited = [a.get("path", "") for n, a in steps if n == "edit_file"]
+    uploaded = [a.get("destination", "") for n, a in steps
+                if n == "gcs_upload" and a.get("destination")]
     bits = []
     if wrote:
         bits.append(f"wrote {', '.join(wrote)}")
     if edited:
         bits.append(f"edited {', '.join(edited)}")
+    if uploaded:
+        bits.append(f"uploaded {', '.join(uploaded)}")
     if not bits and not any(n in ("write_file", "edit_file") for n, _ in steps):
         bits.append(f"{len(steps)} tool step(s) executed")
     return "Done: " + "; ".join(bits) + "." if bits else "Done."
@@ -299,6 +386,11 @@ def run_demo(
             if names:
                 steps = [(n, _default_args(n, task, ws)) for n in names]
                 source = "nodus"
+                # Le 324M garde son vocabulaire de 8 outils : pour le workflow
+                # media, la LIVRAISON GCS est un capability tool du harnais —
+                # on append l'étape gcs_upload après l'écriture de l'artefact.
+                if task_key == "media" and "gcs_upload" not in names:
+                    steps.append(("gcs_upload", _default_args("gcs_upload", task, ws)))
         return {
             "task": task,
             "summary": run_plan(sink, task, steps, ws, source),

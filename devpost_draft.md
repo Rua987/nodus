@@ -3,7 +3,10 @@
 > Copy the section bodies below into the corresponding Devpost fields.
 > Metrics cited are verified (see README): **99%**, **p = 0.0139**. The
 > 27/30 arithmetic probe is deliberately NOT cited.
-> Gallery image READY: `gallery_timeline.png` (repo root — real live run).
+> Reframed for the Agentic Cinema brief: **media workflow** (shoot-day brief),
+> **Google Cloud in code** (Gemini executor + Cloud Storage delivery), partner
+> **Grafana Cloud** (observability), **MIT license** (see LICENSE).
+> Gallery image READY: `gallery_timeline.png` (repo root — real media run).
 > One placeholder left: the demo-video link (add after recording — script in
 > `video_script_3min.md`).
 
@@ -37,9 +40,11 @@ Nodus plans 119 correctly (99%, zero regressions). End-to-end, the plan
 significantly improves a local executor (sign test, p = 0.0139), with the
 effect growing as plans get longer — exactly where agents need help most.
 
-This hackathon entry activates **Grafana Cloud** through the official
-`mcp-grafana` server as the observability layer: task, plan, every tool call,
-and the final result land in a dashboard as tagged annotations in real time.
+This hackathon entry is **powered by Google Cloud** (Gemini + Cloud Storage,
+both imported and called in code — mock-first so the demo runs with zero
+credentials) and activates **Grafana Cloud** through the official `mcp-grafana`
+server as the observability layer: task, plan, every tool call, and the final
+result land in a dashboard as tagged annotations in real time.
 
 ## Inspiration
 
@@ -56,13 +61,22 @@ model is left with only what it's good at: executing.
    JSON array of tool names from a fixed 8-tool vocabulary.
 2. **Executes** — the harness fills the arguments, runs each tool, and verifies
    the result against guardrails trained on the model's known failure classes.
-3. **Observes** — every event (task → plan → tool_call → tool_result → result)
+   The loop can run on **Gemini** (`gemini:gemini-2.0-flash`, native function
+   calling via the official `google-genai` SDK) as easily as on a local Ollama
+   model.
+3. **Delivers** — the media workflow (demo task `media`) reads a script, writes
+   a shoot-day brief for scene 3, and uploads it to **Google Cloud Storage**
+   (`gcs_upload` — mock-first: deterministic `gs://` URI with no credentials,
+   real upload via the `google-cloud-storage` SDK when `GCLOUD_BUCKET` + ADC
+   are set). GCS is a harness capability tool: the planner's 8-tool vocabulary
+   stays untouched.
+4. **Observes** — every event (task → plan → tool_call → tool_result → result)
    is pushed to Grafana Cloud through `mcp-grafana` as a tagged annotation, so
    the whole run is replayable in a dashboard.
 
-Try it: `python demo_agentic_cinema.py` — no checkpoint, no API key, no
-container. It runs the whole pipeline deterministically and prints the
-timeline.
+Try it: `python demo_agentic_cinema.py --task-key media` — no checkpoint, no
+API key, no cloud credentials, no container. It runs the whole pipeline
+deterministically and prints the timeline.
 
 ## How we built it
 
@@ -73,11 +87,16 @@ timeline.
 - **The harness** — ReAct loop that fills arguments, dispatches the 8 native
   tools, and verifies each result. Guardrails fix the model's systematic
   failure classes (superfluous grep, bash-as-write, missing final write).
+- **The Google Cloud layer** — Gemini executor (`gemini:` prefix → `google-genai`
+  with native function calling, same normalized message format as the other
+  backends) and Cloud Storage delivery (`gcs_upload`, mock-first exactly like
+  the observability sink). Both SDKs are imported and called in code, gated on
+  credentials — no key in the repo, CI stays credential-free.
 - **The observability** — Grafana Cloud MCP server (`mcp-grafana`) launched
   automatically (pip console script → `uvx` → `npx`); each normalized event
   becomes a `create_annotation` call. MCP failure is never fatal to a run
   (silent fallback + counter).
-- **The validation** — 921 passing tests, plus a fresh 120-task holdout with
+- **The validation** — 900+ passing tests, plus a fresh 120-task holdout with
   zero entity overlap with any training corpus.
 
 ## Challenges we ran into
@@ -87,8 +106,13 @@ timeline.
   regression. Building a fresh holdout (new entities, zero collision) is what
   actually exposed the old planner's weaknesses — and validated the new one.
 - **Fixed tool vocabulary** — the planner can only emit 8 native tools, so
-  Grafana had to be an observability layer, not a planable tool. That turned
-  out to be the right design: the dashboard is the agent's scope.
+  Grafana (observability) and Cloud Storage delivery both had to be harness
+  capabilities, not planable tools. That turned out to be the right design:
+  the dashboard is the agent's scope, the bucket its delivery.
+- **Mock-first cloud** — no credentials in the repo or CI. Google Cloud is
+  imported and called in code, but gated on `NODUS_GCLOUD=real` + ADC; without
+  them, a deterministic mock (a `[mock]` marker on every `gs://` URI) keeps the
+  demo honest and reproducible.
 - **Windows console encoding** — the timeline glyphs (→ ✓) crashed printing on
   a cp1252 console; the demo now forces UTF-8 output with a safe fallback.
 
@@ -99,9 +123,10 @@ timeline.
   helps the executor on 27 tasks, hurts on 11, and the effect grows with plan
   length.
 - **A 30-second demo with zero dependencies** that nonetheless uses the real
-  324M model when the checkpoint is present.
-- **921 tests passing** across the harness, the planner bridge, the guardrails,
-  and the Grafana sink.
+  324M model when the checkpoint is present — and delivers a media artifact to
+  a (mock or real) Cloud Storage bucket.
+- **900+ tests passing** across the harness, the planner bridge, the guardrails,
+  the Grafana sink, and the Google Cloud sink.
 
 ## What we learned
 
@@ -122,8 +147,8 @@ timeline.
 
 ## Built with
 
-Python · PyTorch · Grafana Cloud · Model Context Protocol (mcp-grafana) ·
-GitHub · Ollama (optional executor)
+Python · PyTorch · Google Cloud (Gemini · Cloud Storage) · Grafana Cloud ·
+Model Context Protocol (mcp-grafana) · GitHub · Ollama (optional executor)
 
 ## Try it out
 
@@ -131,8 +156,9 @@ GitHub · Ollama (optional executor)
 - Demo video: [PLACEHOLDER: coller le lien YouTube après enregistrement —
   script + commandes dans `video_script_3min.md`]
 - Gallery image: upload `gallery_timeline.png` (racine du repo) — timeline du
-  run live réel (plan 324M v5 + exécution hermes3:8b + annotations Grafana).
-  Raw après push: https://raw.githubusercontent.com/Rua987/nodus/main/gallery_timeline.png
+  run media réel (plan 324M v5 + harnais qui remplit args / vérifie + upload
+  GCS mock + annotations Grafana). Raw après push:
+  https://raw.githubusercontent.com/Rua987/nodus/main/gallery_timeline.png
 
 ---
 
