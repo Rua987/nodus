@@ -1,9 +1,11 @@
 # Nodus — Devpost submission draft
 
 > Copy the section bodies below into the corresponding Devpost fields.
-> Replace the two `[PLACEHOLDER]` links before submitting.
 > Metrics cited are verified (see README): **99%**, **p = 0.0139**. The
 > 27/30 arithmetic probe is deliberately NOT cited.
+> Gallery image READY: `gallery_timeline.png` (repo root — real live run).
+> One placeholder left: the demo-video link (add after recording — script in
+> `video_script_3min.md`).
 
 ---
 
@@ -126,16 +128,19 @@ GitHub · Ollama (optional executor)
 ## Try it out
 
 - GitHub: https://github.com/Rua987/nodus
-- Demo video: [PLACEHOLDER: YouTube/Grafana share link]
-- Devpost gallery image: [PLACEHOLDER: screenshot of the demo timeline with
-  its annotations (pas de Grafana live — pas de compte)]
+- Demo video: [PLACEHOLDER: coller le lien YouTube après enregistrement —
+  script + commandes dans `video_script_3min.md`]
+- Gallery image: upload `gallery_timeline.png` (racine du repo) — timeline du
+  run live réel (plan 324M v5 + exécution hermes3:8b + annotations Grafana).
+  Raw après push: https://raw.githubusercontent.com/Rua987/nodus/main/gallery_timeline.png
 
 ---
 
 ### Quick copy checklist
 
 - [ ] Paste each section into its Devpost field (section headings map 1:1).
-- [ ] Fill the demo video link and gallery image placeholders.
+- [ ] Upload `gallery_timeline.png` as the gallery image (1/3 slots).
+- [ ] Add the demo-video link after recording (script: `video_script_3min.md`).
 - [ ] Confirm the pitch ≤ 500 words if the form enforces a limit (~230 here).
 - [ ] Under "Built with", select the actual Grafana Cloud / MCP tags if the
       form offers them.
