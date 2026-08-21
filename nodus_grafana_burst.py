@@ -78,7 +78,13 @@ def _burst_events(sink, delay_s: float = _RATE_LIMIT_SLEEP_S) -> List[str]:
 
 
 def _dashboard_json(uid: str, panel_id: int = 1) -> dict:
-    """Dashboard minimal : un panel timeline qui affiche les annotations taggées nodus."""
+    """Dashboard minimal : un panel timeline qui affiche les annotations taggées nodus.
+
+    Le datasource des annotations NATIVES est {"type":"grafana","uid":"-- Grafana --"}
+    (PAS {"type":"datasource","uid":"grafana"} — ref inexistante, couche muette).
+    Les annotations sont org-level (créées par create_annotation sans dashboardUid)
+    → affichées par une couche dashboard `type:"tags"` (query "nodus").
+    """
     return {
         "dashboard": {
             "title": "NODUS — Agent scope (demo)",
@@ -86,32 +92,43 @@ def _dashboard_json(uid: str, panel_id: int = 1) -> dict:
             "tags": ["nodus", "agentic-cinema"],
             "schemaVersion": 39,
             "version": 0,
-            "time": {"from": "now-15m", "to": "now"},
+            "time": {"from": "now-1h", "to": "now"},
             "timezone": "utc",
-            "refresh": "",
+            "refresh": "5s",
+            # Annotation layers au niveau DASHBOARD (pas panel) — la couche
+            # tags "nodus" affiche les annotations org-level taggées nodus.
+            "annotations": {
+                "list": [
+                    {
+                        "builtIn": 1,
+                        "datasource": {"type": "grafana", "uid": "-- Grafana --"},
+                        "enable": True,
+                        "hide": True,
+                        "iconColor": "rgba(0, 211, 255, 1)",
+                        "name": "Annotations & Alerts",
+                        "type": "dashboard",
+                    },
+                    {
+                        "name": "NODUS events",
+                        "enable": True,
+                        "hide": False,
+                        "iconColor": "purple",
+                        "type": "tags",
+                        "query": "nodus",
+                        "datasource": {"type": "grafana", "uid": "-- Grafana --"},
+                    },
+                ]
+            },
             "panels": [
                 {
                     "id": panel_id,
                     "type": "timeseries",
                     "title": "Run NODUS — timeline des événements",
                     "gridPos": {"h": 10, "w": 24, "x": 0, "y": 0},
-                    "datasource": {"type": "datasource", "uid": "grafana"},
+                    "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
                     "fieldConfig": {"defaults": {}, "overrides": []},
                     "options": {"legend": {"displayMode": "list", "placement": "bottom"}},
-                    "targets": [],
-                    # Annotation layer : affiche les annotations taggées nodus
-                    # (org-level). Le datasource "grafana" = annotations natives.
-                    "annotations": [
-                        {
-                            "name": "NODUS events",
-                            "enable": True,
-                            "hide": False,
-                            "iconColor": "purple",
-                            "type": "tags",
-                            "query": "nodus",
-                            "datasource": {"type": "datasource", "uid": "grafana"},
-                        }
-                    ],
+                    "targets": [{"refId": "A", "expr": "vector(0)", "legendFormat": "baseline"}],
                 }
             ],
         },

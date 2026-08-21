@@ -37,6 +37,7 @@ API_TIMEOUT       = 300
 ANTHROPIC_MAX_TOKENS = 4096
 OPENROUTER_PREFIX = "openrouter/"
 GEMINI_PREFIX = "gemini:"
+VERTEX_PREFIX = "vertex:"
 
 _HERE = Path(__file__).parent.resolve()
 
@@ -59,7 +60,7 @@ def detect_backend(model: str) -> str:
         model: Nom du modèle
 
     Returns:
-        "ollama" | "deepseek" | "anthropic" | "openrouter" | "gemini"
+        "ollama" | "deepseek" | "anthropic" | "openrouter" | "gemini" | "vertex"
 
     Example:
         >>> detect_backend("openrouter/anthropic/claude-3.5-sonnet")
@@ -70,6 +71,8 @@ def detect_backend(model: str) -> str:
         'deepseek'
         >>> detect_backend("gemini:gemini-2.0-flash")
         'gemini'
+        >>> detect_backend("vertex:gemini-2.0-flash")
+        'vertex'
         >>> detect_backend("qwen3.5:2b")
         'ollama'
         >>> detect_backend("deepseek-coder:latest")
@@ -84,6 +87,8 @@ def detect_backend(model: str) -> str:
         return "deepseek"
     if name.startswith(GEMINI_PREFIX):
         return "gemini"
+    if name.startswith(VERTEX_PREFIX):
+        return "vertex"
     return "ollama"
 
 
@@ -424,6 +429,56 @@ def _gemini_model_id(model: str) -> str:
     return model
 
 
+def _vertex_model_id(model: str) -> str:
+    """
+    Retire le préfixe 'vertex:' pour obtenir l'id de modèle réel.
+
+    Miroir de _gemini_model_id (préserve la casse de l'id réel).
+
+    Args:
+        model: Nom complet (ex: 'vertex:gemini-2.0-flash')
+
+    Returns:
+        Id de modèle Vertex AI (ex: 'gemini-2.0-flash').
+
+    Example:
+        >>> _vertex_model_id("vertex:gemini-2.0-flash")
+        'gemini-2.0-flash'
+        >>> _vertex_model_id("plain-model")
+        'plain-model'
+    """
+    if model.lower().startswith(VERTEX_PREFIX):
+        return model[len(VERTEX_PREFIX):]
+    return model
+
+
+def _vertex_project() -> str:
+    """
+    Projet Google Cloud requis pour l'appel Vertex AI.
+
+    L'id du projet (pas le nom affiché) se lit dans GOOGLE_CLOUD_PROJECT.
+
+    Raises:
+        RuntimeError: si la variable d'environnement est absente.
+    """
+    project = os.environ.get("GOOGLE_CLOUD_PROJECT", "").strip()
+    if not project:
+        raise RuntimeError(
+            "Vertex AI project missing — set GOOGLE_CLOUD_PROJECT "
+            "(your GCP project id, e.g. GOOGLE_CLOUD_PROJECT=nodus-hackathon-2026)"
+        )
+    return project
+
+
+def _vertex_location() -> str:
+    """
+    Région Vertex AI (GOOGLE_CLOUD_LOCATION, sinon GOOGLE_CLOUD_REGION,
+    défaut 'us-central1').
+    """
+    return (os.environ.get("GOOGLE_CLOUD_LOCATION") or
+            os.environ.get("GOOGLE_CLOUD_REGION") or "us-central1").strip() or "us-central1"
+
+
 def _to_gemini_contents(messages: list) -> Tuple[str, list]:
     """
     Convertit l'historique Ollama-style vers (system, contents) Gemini.
@@ -615,11 +670,65 @@ def _chat_gemini(messages: list, model: str, tools: Optional[list]) -> dict:
     return _from_gemini_response(resp)
 
 
+def _chat_vertex(messages: list, model: str, tools: Optional[list]) -> dict:
+    """
+    Appel Vertex AI — Google Cloud Agent Builder (google-genai, vertexai=True).
+
+    Même traduction que le backend Gemini (contents/tools/réponse identiques) ;
+    seule l'authentification change : ADC Google Cloud au lieu d'une clé API.
+    L'exécuteur tourne donc sur le runtime de la plateforme Agent Builder
+    (Vertex AI / Gemini Enterprise), conformément au brief du hackathon.
+
+    Args:
+        messages: Historique (format Ollama)
+        model:    Nom du modèle (ex: 'vertex:gemini-2.0-flash')
+        tools:    TOOL_SCHEMAS (format OpenAI)
+
+    Returns:
+        Message assistant normalisé (Ollama-style).
+
+    Raises:
+        RuntimeError: si GOOGLE_CLOUD_PROJECT / GOOGLE_APPLICATION_CREDENTIALS
+        manquants, ou paquet google-genai absent.
+    """
+    project = _vertex_project()
+    if not os.environ.get("GOOGLE_APPLICATION_CREDENTIALS", "").strip():
+        raise RuntimeError(
+            "Vertex AI credentials missing — set GOOGLE_APPLICATION_CREDENTIALS "
+            "(service-account JSON) or run `gcloud auth application-default login`"
+        )
+    try:
+        from google import genai
+    except ImportError:
+        raise RuntimeError(
+            "google-genai package not installed — pip install google-genai"
+        )
+    real_model = _vertex_model_id(model)
+    system, contents = _to_gemini_contents(messages)
+    if not contents:
+        from google.genai import types
+        contents = [types.Content(role="user", parts=[types.Part(text="Continue.")])]
+    gemini_tools = _to_gemini_tools(tools)
+    config: dict = {}
+    if system:
+        config["system_instruction"] = system
+    if gemini_tools:
+        config["tools"] = gemini_tools
+    client = genai.Client(vertexai=True, project=project, location=_vertex_location())
+    resp = client.models.generate_content(
+        model=real_model,
+        contents=contents,
+        config=config,
+    )
+    return _from_gemini_response(resp)
+
+
 # ── Dispatcher ────────────────────────────────────────────────────────────────
 
 def chat_api(messages: list, model: str, tools: Optional[list]) -> dict:
     """
-    Route vers le backend API approprié (DeepSeek, OpenRouter, Anthropic, Gemini).
+    Route vers le backend API approprié (DeepSeek, OpenRouter, Anthropic,
+    Gemini, Vertex AI).
 
     NE gère PAS Ollama (laissé à nodus_agent._chat pour préserver le chemin
     local existant). Appeler uniquement quand detect_backend != "ollama".
@@ -644,4 +753,6 @@ def chat_api(messages: list, model: str, tools: Optional[list]) -> dict:
         return _chat_anthropic(messages, model, tools)
     if backend == "gemini":
         return _chat_gemini(messages, model, tools)
+    if backend == "vertex":
+        return _chat_vertex(messages, model, tools)
     raise ValueError(f"chat_api called for non-API backend: {backend}")

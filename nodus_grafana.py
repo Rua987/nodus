@@ -200,7 +200,13 @@ class GrafanaSink:
         return evt
 
     def _push_annotation(self, evt: Dict[str, Any]) -> None:
-        """Mode live : crée une annotation Grafana à partir d'un événement."""
+        """Mode live : crée une annotation Grafana à partir d'un événement.
+
+        Les annotations sont attachées au dashboard scope (dashboardUid+panelId)
+        pour qu'elles apparaissent via la couche NATIVE "Annotations & Alerts"
+        (builtIn). Sans dashboardUid, elles sont org-level et dépendent d'une
+        couche tags qui ne rend pas fiablement côté frontend.
+        """
         try:
             qname = self._resolve_tool("create_annotation")
             if qname is None:
@@ -210,10 +216,11 @@ class GrafanaSink:
                 )
                 return
             text = _annotation_text(evt)
-            result = self._bridge.call(
-                qname,
-                {"text": text, "tags": _TAGS + [f"nodus:{evt['kind']}"]},
-            )
+            payload = {"text": text, "tags": _TAGS + [f"nodus:{evt['kind']}"]}
+            uid = os.environ.get("NODUS_GRAFANA_DASHBOARD_UID", "nodus-agent-scope")
+            payload["dashboardUid"] = uid
+            payload["panelId"] = int(os.environ.get("NODUS_GRAFANA_PANEL_ID", "1"))
+            result = self._bridge.call(qname, payload)
             if getattr(result, "success", None) is False:
                 self.errors.append(
                     f"create_annotation rejected: {getattr(result, 'error', '?')}"

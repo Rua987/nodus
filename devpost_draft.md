@@ -62,8 +62,9 @@ model is left with only what it's good at: executing.
 2. **Executes** — the harness fills the arguments, runs each tool, and verifies
    the result against guardrails trained on the model's known failure classes.
    The loop can run on **Gemini** (`gemini:gemini-2.0-flash`, native function
-   calling via the official `google-genai` SDK) as easily as on a local Ollama
-   model.
+   calling via the official `google-genai` SDK), on **Vertex AI — Google Cloud
+   Agent Builder** (`vertex:gemini-2.0-flash`, the same SDK built with
+   `vertexai=True`, ADC auth), or on a local Ollama model.
 3. **Delivers** — the media workflow (demo task `media`) reads a script, writes
    a shoot-day brief for scene 3, and uploads it to **Google Cloud Storage**
    (`gcs_upload` — mock-first: deterministic `gs://` URI with no credentials,
@@ -87,11 +88,13 @@ deterministically and prints the timeline.
 - **The harness** — ReAct loop that fills arguments, dispatches the 8 native
   tools, and verifies each result. Guardrails fix the model's systematic
   failure classes (superfluous grep, bash-as-write, missing final write).
-- **The Google Cloud layer** — Gemini executor (`gemini:` prefix → `google-genai`
-  with native function calling, same normalized message format as the other
-  backends) and Cloud Storage delivery (`gcs_upload`, mock-first exactly like
-  the observability sink). Both SDKs are imported and called in code, gated on
-  credentials — no key in the repo, CI stays credential-free.
+- **The Google Cloud layer** — the executor runs on **Gemini via Vertex AI
+  (Agent Builder)** or on the Gemini API — `gemini:` / `vertex:` prefixes →
+  the official `google-genai` SDK; the `vertex:` path is built with
+  `vertexai=True` (the Agent Builder runtime). Cloud Storage delivery
+  (`gcs_upload`) is mock-first exactly like the observability sink. Both SDKs
+  are imported and called in code, gated on credentials — no key in the repo,
+  CI stays credential-free.
 - **The observability** — Grafana Cloud MCP server (`mcp-grafana`) launched
   automatically (pip console script → `uvx` → `npx`); each normalized event
   becomes a `create_annotation` call. MCP failure is never fatal to a run
@@ -147,12 +150,15 @@ deterministically and prints the timeline.
 
 ## Built with
 
-Python · PyTorch · Google Cloud (Gemini · Cloud Storage) · Grafana Cloud ·
+Python · PyTorch · Google Cloud (Gemini · Vertex AI Agent Builder · Cloud
+Storage) · Grafana Cloud ·
 Model Context Protocol (mcp-grafana) · GitHub · Ollama (optional executor)
 
 ## Try it out
 
 - GitHub: https://github.com/Rua987/nodus
+- Hosted: https://rua987.github.io/nodus/ (landing page — timeline du run
+  réel, commandes « run it yourself »)
 - Demo video: [PLACEHOLDER: coller le lien YouTube après enregistrement —
   script + commandes dans `video_script_3min.md`]
 - Gallery image: upload `gallery_timeline.png` (racine du repo) — timeline du

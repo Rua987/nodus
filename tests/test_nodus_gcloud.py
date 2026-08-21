@@ -315,6 +315,10 @@ def _install_fake_genai(monkeypatch):
     genai.Client = _FakeGenaiClient
     monkeypatch.setitem(sys.modules, "google", _FakeNs(genai=genai))
     monkeypatch.setitem(sys.modules, "google.genai", genai)
+    # isolation : état de classe partagé remis à zéro à chaque installation
+    _FakeGenaiClient.last = None
+    _FakeModels.calls = []
+    _FakeModels.resp = None
 
 
 def test_chat_gemini_requires_key(monkeypatch):
@@ -383,3 +387,102 @@ def test_to_gemini_tools_conversion(monkeypatch):
 
 def test_to_gemini_tools_none():
     assert nb._to_gemini_tools(None) is None
+
+
+# ── Backend Vertex AI : détection + appel (google-genai vertexai=True) ───────
+
+def test_detect_backend_vertex_prefix():
+    assert nb.detect_backend("vertex:gemini-2.0-flash") == "vertex"
+    assert nb.detect_backend("vertex:gemini-2.5-pro") == "vertex"
+    # sans deux-points → pas confondu avec un modèle Ollama
+    assert nb.detect_backend("vertex-2.0-flash") == "ollama"
+    # pas de collision avec le préfixe gemini
+    assert nb.detect_backend("gemini:gemini-2.0-flash") == "gemini"
+
+
+def test_vertex_model_id_strips_prefix():
+    assert nb._vertex_model_id("vertex:gemini-2.0-flash") == "gemini-2.0-flash"
+    assert nb._vertex_model_id("plain-model") == "plain-model"
+
+
+def test_chat_api_routes_vertex(monkeypatch):
+    monkeypatch.setattr(nb, "_chat_vertex", lambda m, model, tools: {"role": "assistant",
+                                                                    "content": "ok"})
+    assert nb.chat_api([], "vertex:gemini-2.0-flash", None)["content"] == "ok"
+
+
+def test_vertex_location_defaults(monkeypatch):
+    monkeypatch.delenv("GOOGLE_CLOUD_LOCATION", raising=False)
+    monkeypatch.delenv("GOOGLE_CLOUD_REGION", raising=False)
+    assert nb._vertex_location() == "us-central1"
+    monkeypatch.setenv("GOOGLE_CLOUD_LOCATION", "europe-west4")
+    assert nb._vertex_location() == "europe-west4"
+    monkeypatch.delenv("GOOGLE_CLOUD_LOCATION")
+    monkeypatch.setenv("GOOGLE_CLOUD_REGION", "asia-northeast1")
+    assert nb._vertex_location() == "asia-northeast1"
+
+
+def test_chat_vertex_requires_project(monkeypatch):
+    monkeypatch.delenv("GOOGLE_CLOUD_PROJECT", raising=False)
+    monkeypatch.setenv("GOOGLE_APPLICATION_CREDENTIALS", "fake.json")
+    with pytest.raises(RuntimeError, match="GOOGLE_CLOUD_PROJECT"):
+        nb._chat_vertex([{"role": "user", "content": "hi"}],
+                        "vertex:gemini-2.0-flash", None)
+
+
+def test_chat_vertex_requires_creds(monkeypatch):
+    monkeypatch.setenv("GOOGLE_CLOUD_PROJECT", "test-project")
+    monkeypatch.delenv("GOOGLE_APPLICATION_CREDENTIALS", raising=False)
+    with pytest.raises(RuntimeError, match="GOOGLE_APPLICATION_CREDENTIALS"):
+        nb._chat_vertex([{"role": "user", "content": "hi"}],
+                        "vertex:gemini-2.0-flash", None)
+
+
+def test_chat_vertex_normalizes_response(monkeypatch):
+    _install_fake_genai(monkeypatch)
+    monkeypatch.setenv("GOOGLE_CLOUD_PROJECT", "test-project")
+    monkeypatch.setenv("GOOGLE_APPLICATION_CREDENTIALS", "fake.json")
+    _FakeModels.resp = _Fake(candidates=[_Fake(content=_Fake(parts=[
+        _Fake(text="I will write it"),
+        _Fake(function_call=_Fake(name="write_file", args={"path": "x.txt"})),
+    ]))])
+    msg = nb._chat_vertex([{"role": "user", "content": "write a file"}],
+                          "vertex:gemini-2.0-flash", None)
+    assert msg["role"] == "assistant"
+    assert msg["content"] == "I will write it"
+    assert msg["tool_calls"][0]["function"]["name"] == "write_file"
+    assert msg["tool_calls"][0]["function"]["arguments"] == {"path": "x.txt"}
+    # préfixe retiré + client construit avec vertexai=True / project / location
+    call = _FakeModels.calls[-1]
+    assert call["model"] == "gemini-2.0-flash"
+    k = _FakeGenaiClient.last.kwargs
+    assert k.get("vertexai") is True
+    assert k.get("project") == "test-project"
+    assert k.get("location") == "us-central1"
+    assert k.get("api_key") is None
+
+
+def test_chat_vertex_empty_candidates(monkeypatch):
+    _install_fake_genai(monkeypatch)
+    monkeypatch.setenv("GOOGLE_CLOUD_PROJECT", "test-project")
+    monkeypatch.setenv("GOOGLE_APPLICATION_CREDENTIALS", "fake.json")
+    _FakeModels.resp = _Fake(candidates=[])
+    msg = nb._chat_vertex([{"role": "user", "content": "hi"}],
+                          "vertex:gemini-2.0-flash", None)
+    assert msg == {"role": "assistant", "content": ""}
+
+
+def test_chat_vertex_passes_system_and_tools(monkeypatch):
+    _install_fake_genai(monkeypatch)
+    monkeypatch.setenv("GOOGLE_CLOUD_PROJECT", "test-project")
+    monkeypatch.setenv("GOOGLE_APPLICATION_CREDENTIALS", "fake.json")
+    _FakeModels.resp = _Fake(candidates=[_Fake(content=_Fake(parts=[_Fake(text="ok")]))])
+    tools = [{"type": "function", "function": {"name": "bash", "description": "run",
+                                               "parameters": {"type": "object"}}}]
+    nb._chat_vertex([{"role": "system", "content": "SYS"},
+                     {"role": "user", "content": "hi"}],
+                    "vertex:gemini-2.0-flash", tools)
+    call = _FakeModels.calls[-1]
+    assert call["config"]["system_instruction"] == "SYS"
+    assert call["config"]["tools"][0].function_declarations[0].name == "bash"
+    assert call["contents"][0].role == "user"

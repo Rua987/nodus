@@ -11,6 +11,8 @@ any segment without breaking the others.
 python demo_agentic_cinema.py --task-key media   # the media demo timeline
 python demo_agentic_cinema.py --contrast         # plan vs no-plan side by side
 python demo_agentic_cinema.py --list-tasks       # for the intro card
+# optional clip — real Vertex AI executor (needs GOOGLE_CLOUD_PROJECT + ADC)
+python demo_agentic_cinema.py --live --model vertex:gemini-2.0-flash --task-key media
 ```
 If `checkpoints/checkpoint_sft_plan_v5.pt` is present the demo uses the
 **real 324M planner** (plan source: `[nodus]`); otherwise the gold plan
@@ -43,9 +45,10 @@ the screen glitches and cuts to the title card **NODUS — a tiny local planner*
 > This is Nodus — a 324-million-parameter transformer, trained on one single
 > job: turn a natural-language task into an ordered list of tool names. No
 > arguments. No replanning. The harness fills the details, executes, and
-> verifies. Because the planner is small and local, planning costs nothing,
-> runs on CPU, and your code never leaves the machine. The big model's only
-> job is what it's actually good at: executing.
+> verifies. Because the planner is small and local, planning costs nothing and
+> runs on CPU — your plan stays private. Execution is where you choose: a local
+> model, or Gemini on Google Cloud's Vertex AI. The big model's only job is
+> what it's actually good at: executing.
 
 ---
 
@@ -58,8 +61,10 @@ line, the gs:// upload URI, then the ✓ results.
 **Narration** (≈ 108 words):
 > Here's the whole pipeline, end to end — on a real media workflow. A task
 > arrives: read the script, write the shoot-day brief for scene three, and
-> deliver it to Google Cloud Storage. The planner answers in tool names: read,
-> write, upload. The harness takes over — fills the arguments, runs each step,
+> deliver it to Google Cloud Storage. The executor can run on Gemini through
+> Vertex AI — Google's Agent Builder platform. The planner answers in tool
+> names: read, write, upload. The harness takes over — fills the arguments,
+> runs each step,
 > verifies the result. Read the script. Write the brief. Upload it — here's the
 > gs:// URI, delivered. Every one of these events streams to Grafana Cloud as a
 > live annotation, so the dashboard becomes the agent's scope. With a plan, the
@@ -94,9 +99,11 @@ the real SDK path activates with `NODUS_GCLOUD=real`". Right: the event stream
 (`nodus:task`, `nodus:plan`, …) → `mcp-grafana` server → `create_annotation`.
 
 **Narration** (≈ 72 words):
-> Delivery is powered by Google Cloud. The upload tool calls the official Cloud
-> Storage SDK when credentials are present, and prints an honest, deterministic
-> mock URI when they're not — so the demo runs with zero setup. In parallel,
+> Execution is powered by Gemini on Vertex AI — Google Cloud's Agent Builder
+> runtime — through the official SDK. Delivery is powered by Google Cloud too:
+> the upload tool calls the official Cloud Storage SDK when credentials are
+> present, and prints an honest, deterministic mock URI when they're not — so
+> the demo runs with zero setup. In parallel,
 > every event — task, plan, every tool call and result — is tagged and streamed
 > to Grafana Cloud through the official MCP server. Point it at your Grafana,
 > and the whole run lands live in your dashboard.
@@ -124,7 +131,7 @@ the real SDK path activates with `NODUS_GCLOUD=real`". Right: the event stream
 | 0:25 | split screen: task → model card → plan | Segment 2 |
 | 0:55 | live `--task-key media` timeline (read → write → gs:// upload → verify) | Segment 3 |
 | 1:45 | metric cards: 99% then p=0.0139 table | Segment 4 |
-| 2:20 | GCS delivery + event stream → Grafana MCP mapping (split screen) | Segment 5 |
+| 2:20 | Vertex AI executor + GCS delivery + event stream → Grafana MCP mapping (split screen) | Segment 5 |
 | 2:45 | repo card + `900+ passed` + MIT badge | Segment 6 |
 
 **Production notes**
@@ -134,3 +141,7 @@ the real SDK path activates with `NODUS_GCLOUD=real`". Right: the event stream
   on your setup, the output is still fully readable — don't re-record for that.
 - Optional cut: if the segment 3 contrast clip makes the video run long, drop
   the "no plan" part and keep only the with-plan timeline.
+- Optional clip: the live Vertex AI executor (`--live --model
+  vertex:gemini-2.0-flash`) is a strong 10 s shot if the real run is clean —
+  it shows Gemini on Google Cloud's Agent Builder platform functioning as
+  built (per the brief). Requires `GOOGLE_CLOUD_PROJECT` + ADC.

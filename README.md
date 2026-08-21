@@ -154,6 +154,24 @@ Nodus is powered by Google Cloud in two places — both imported and called in
    *Optional: `pip install google-genai`. Without the package, the run fails
    loudly only if you actually request a `gemini:` model.*
 
+   **Vertex AI — Google Cloud Agent Builder** — the same executor can run on
+   **Vertex AI** (Google Cloud's Agent Builder / Gemini Enterprise platform)
+   using Application Default Credentials instead of an API key. Any model id
+   prefixed with `vertex:` routes the loop through the same `google-genai`
+   SDK built with `vertexai=True`:
+
+   ```bash
+   export GOOGLE_CLOUD_PROJECT=<your-gcp-project-id>
+   export GOOGLE_APPLICATION_CREDENTIALS=service-account.json
+   # or: gcloud auth application-default login
+   python nodus_agent.py "Read script.txt, then write the shoot-day brief, then upload it" \
+     --plan --plan-source nodus --model vertex:gemini-2.0-flash
+   ```
+
+   *Region: `GOOGLE_CLOUD_LOCATION` (default `us-central1`); the Vertex AI API
+   must be enabled in the project. Same `pip install google-genai` requirement —
+   the run fails loudly only if you actually request a `vertex:` model.*
+
 2. **`gcs_upload` — deliver the produced asset to Cloud Storage** — the final
    step of the media workflow. Deterministic mock by default (no credentials,
    no network); real upload via the official `google-cloud-storage` SDK when
@@ -195,11 +213,12 @@ nodus_grafana.py     Grafana Cloud telemetry sink (mock / mcp / off)
 nodus_gcloud.py      Google Cloud Storage delivery (mock / real / off)
 nodus_mcp_client.py  multi-server MCP registry (namespacing, pinning)
 nodus_backends.py    multi-backend executors: Ollama · DeepSeek · OpenRouter ·
-                     Anthropic · Gemini (gemini: prefix, google-genai)
+                     Anthropic · Gemini · Vertex AI (gemini:/vertex: prefixes,
+                     google-genai, vertexai=True for the Agent Builder runtime)
 demo_agentic_cinema.py  self-contained demo: task → plan → tools → GCS → Grafana
 video_script_3min.md    3-minute narration script for the hackathon video
 devpost_draft.md        Devpost submission draft (copy-paste ready)
-tests/             953 passing tests (pytest)
+tests/             962 passing tests (pytest)
 ```
 
 ### Guardrails (why 99% is real)
@@ -237,7 +256,7 @@ regressions — a decisive improvement over the previous planner (91%).
 ## Tests
 
 ```bash
-python -m pytest tests/        # 953 passed
+python -m pytest tests/        # 962 passed
 ```
 
 ---
@@ -251,5 +270,6 @@ under the same license.
 ---
 
 *Prepared for the Agentic Cinema hackathon (Google Cloud + partners).
-Google Cloud: Gemini executor (`google-genai`) + Cloud Storage delivery
-(`gcs_upload`). Partner service: Grafana Cloud MCP (`mcp-grafana`).*
+Google Cloud: Gemini + Vertex AI executor (`google-genai`, `vertexai=True` for
+the Agent Builder runtime) + Cloud Storage delivery (`gcs_upload`).
+Partner service: Grafana Cloud MCP (`mcp-grafana`).*
