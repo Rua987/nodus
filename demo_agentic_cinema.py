@@ -519,7 +519,10 @@ def main() -> int:
         else:
             _out("plan source: none (ad-hoc bash) — set NODUS_PLAN_CKPT or use --task-key for a real plan")
         if sink.mode == "mcp":
-            _out(f"[grafana] pushed {len(sink.events)} annotations (tags: nodus, agentic-cinema)")
+            n_ok = getattr(sink, "pushed", len(sink.events))
+            _out(f"[grafana] pushed {n_ok}/{len(sink.events)} annotations (tags: nodus, agentic-cinema)")
+            if getattr(sink, "errors", None):
+                _out(f"[grafana] {len(sink.errors)} push error(s): {sink.errors[0][:90]}")
         else:
             _out("telemetry: mock mode — run with NODUS_GRAFANA=mcp (plus GRAFANA_URL and")
             _out("  GRAFANA_SERVICE_ACCOUNT_TOKEN) to push live annotations to Grafana Cloud")

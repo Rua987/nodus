@@ -5,6 +5,7 @@ import json
 import os
 import shutil
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -162,6 +163,33 @@ def test_connect_mcp_falls_back_to_mock_without_launcher(monkeypatch):
     sink.close()
 
 
+def test_connect_mcp_forwards_org_id_env(monkeypatch):
+    """mcp-grafana lit GRAFANA_ORG_ID (org numérique) — sinon org_id=0 → 503."""
+    monkeypatch.setattr(lg, "mcp_grafana_command", lambda *a, **k: ("mcp-grafana", []))
+    seen = {}
+
+    class _FakeBridge:
+        def connect_servers(self, cfg_path, names):
+            seen["cfg"] = json.loads(Path(cfg_path).read_text(encoding="utf-8"))
+            return None
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr("nodus_mcp_client.McpBridge", _FakeBridge)
+
+    monkeypatch.setenv("GRAFANA_ORG_ID", "1")
+    sink = GrafanaSink(mode="mcp", url="https://x.grafana.net", token="glsa_dummy")
+    assert sink.mode == "mcp"
+    assert seen["cfg"]["mcpServers"]["grafana"]["env"]["GRAFANA_ORG_ID"] == "1"
+    sink.close()
+
+    monkeypatch.delenv("GRAFANA_ORG_ID", raising=False)
+    sink2 = GrafanaSink(mode="mcp", url="https://x.grafana.net", token="glsa_dummy")
+    assert "GRAFANA_ORG_ID" not in seen["cfg"]["mcpServers"]["grafana"]["env"]
+    sink2.close()
+
+
 # ── Résolution du préfixe réel (mcp-grafana.*, pas la clé config grafana) ─────
 
 class _FakeRegistry:
@@ -219,4 +247,40 @@ def test_search_dashboards_resolves_prefix():
     sink.search_dashboards("health")
     assert bridge.calls and bridge.calls[0][0] == "mcp-grafana.search_dashboards"
     assert bridge.calls[0][1] == {"query": "health"}
+    sink.close()
+
+
+def test_push_annotation_counts_confirmed_pushes():
+    bridge = _FakeBridge({"mcp-grafana.create_annotation": object()})
+    sink = GrafanaSink(mode="mock")
+    sink._bridge = bridge
+    sink.mode = "mcp"
+    for _ in range(3):
+        sink.record("result", answer="ok")
+    assert sink.pushed == 3
+    assert sink.errors == []
+    sink.close()
+
+
+def test_push_annotation_retries_once_on_429(monkeypatch):
+    calls = {"n": 0}
+
+    class _Flaky:
+        def __init__(self, entries):
+            self.registry = _FakeRegistry(entries)
+
+        def call(self, qname, args):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                return type("R", (), {"success": False, "error": "429 rate limit"})()
+            return type("R", (), {"success": True})()
+
+    sink = GrafanaSink(mode="mock")
+    sink._bridge = _Flaky({"mcp-grafana.create_annotation": object()})
+    sink.mode = "mcp"
+    monkeypatch.setattr("nodus_grafana.time.sleep", lambda s: None)
+    sink.record("result", answer="ok")
+    assert calls["n"] == 2  # un seul retry après le 429
+    assert sink.pushed == 1
+    assert sink.errors == []
     sink.close()

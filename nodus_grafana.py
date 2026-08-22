@@ -91,6 +91,7 @@ class GrafanaSink:
         self.mode = mode
         self.events: List[Dict[str, Any]] = []
         self.errors: List[str] = []
+        self.pushed = 0  # annotations confirmées par Grafana (create_annotation OK)
         self._jsonl = None
         self._bridge = None  # McpBridge (import tardif — évite le coût mcp en mock)
         if jsonl_path:
@@ -136,15 +137,21 @@ class GrafanaSink:
             return
         command, args = cmd
 
+        server_env = {
+            "GRAFANA_URL": url,
+            "GRAFANA_SERVICE_ACCOUNT_TOKEN": token,
+        }
+        # Multi-org: mcp-grafana lit GRAFANA_ORG_ID (id numérique de l'org).
+        # Sans lui, le serveur utilise org_id=0 → 503 sur les opérations.
+        _org = (os.environ.get("GRAFANA_ORG_ID") or "").strip()
+        if _org:
+            server_env["GRAFANA_ORG_ID"] = _org
         config = {
             "mcpServers": {
                 "grafana": {
                     "command": command,
                     "args": args,
-                    "env": {
-                        "GRAFANA_URL": url,
-                        "GRAFANA_SERVICE_ACCOUNT_TOKEN": token,
-                    },
+                    "env": server_env,
                 }
             }
         }
@@ -222,9 +229,17 @@ class GrafanaSink:
             payload["panelId"] = int(os.environ.get("NODUS_GRAFANA_PANEL_ID", "1"))
             result = self._bridge.call(qname, payload)
             if getattr(result, "success", None) is False:
-                self.errors.append(
-                    f"create_annotation rejected: {getattr(result, 'error', '?')}"
-                )
+                err = str(getattr(result, "error", "?"))
+                # 429 = rate-limit (Grafana Cloud) : un seul retry court.
+                if "429" in err:
+                    time.sleep(1.0)
+                    result = self._bridge.call(qname, payload)
+                    if getattr(result, "success", None) is not False:
+                        self.pushed += 1
+                        return
+                self.errors.append(f"create_annotation rejected: {err}")
+            else:
+                self.pushed += 1
         except Exception as exc:  # jamais fatal
             self.errors.append(f"create_annotation failed: {exc}")
 
