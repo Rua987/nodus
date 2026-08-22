@@ -178,6 +178,16 @@ def _real_nodus_plan(task: str) -> Optional[List[str]]:
         return None
 
 
+def _plan_device_label() -> str:
+    """Device reel du planificateur local (auto → cuda si dispo, sinon cpu)."""
+    try:
+        from nodus_plan_local import resolve_plan_device
+
+        return resolve_plan_device()
+    except Exception:
+        return "auto"
+
+
 # ── Deterministic mock executor ───────────────────────────────────────────
 
 def _glob_match(pattern: str, path: str) -> bool:
@@ -360,7 +370,7 @@ def run_plan(sink, task: str, steps: List[Tuple[str, dict]], ws: Dict[str, str],
     names = [n for n, _ in steps]
     sink.record("plan", source=source, names=names, steps=len(names))
     for name, args in steps:
-        sink.record("tool_call", name=name, args=json.dumps(args)[:400])
+        sink.record("tool_call", name=name, args=json.dumps(args, ensure_ascii=False)[:400])
         ok, output = mock_execute(name, args, ws)
         sink.record("tool_result", name=name, success=ok, output=output[:300])
     answer = _make_answer(task, steps, ws)
@@ -503,7 +513,7 @@ def main() -> int:
         _out(meta["summary"])
         _out("")
         if meta["source"] == "nodus":
-            _out("plan source: real NODUS 324M (local planner, CPU)")
+            _out(f"plan source: real NODUS 324M (local planner, device={_plan_device_label()})")
         elif meta["source"] == "demo-gold":
             _out("plan source: deterministic gold plan (add checkpoints/checkpoint_sft_plan_v5.pt for the real 324M planner)")
         else:
