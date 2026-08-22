@@ -49,7 +49,8 @@ Rules:
 - Do not fill other arguments (content, old_string, etc.) — only the primary one.
 
 Tool: {tool}
-Primary argument: {arg_name}
+The primary argument you fill is `{arg_name}` (human-readable field name).
+The JSON key of your answer is ALWAYS "target" — never `{arg_name}`, never any other name.
 Step: {step}/{n_steps}
 Previous steps: {previous}
 Task: {task}
@@ -168,7 +169,9 @@ def parse_slotfill(text: str) -> Optional[str]:
                     return None
                 if isinstance(tg, str):
                     s = tg.strip()
-                    return s if s else None
+                    if not s or s.lower() in ("null", "none", "n/a"):
+                        return None
+                    return s
     except (json.JSONDecodeError, TypeError):
         pass
     return None
