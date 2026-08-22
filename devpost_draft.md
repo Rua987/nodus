@@ -7,8 +7,9 @@
 > **Google Cloud in code** (Gemini executor + Cloud Storage delivery), partner
 > **Grafana Cloud** (observability), **MIT license** (see LICENSE).
 > Gallery image READY: `gallery_timeline.png` (repo root — real media run).
-> One placeholder left: the demo-video link (add after recording — script in
-> `video_script_3min.md`).
+> Video assets READY: `video_script_3min.md` (narration) + `video_cards/`
+> (9 static PNGs, committed b2acaaa) for the editor.
+> One placeholder left: the demo-video link (add after recording).
 
 ---
 
@@ -21,7 +22,7 @@
 A 324M-parameter planner turns any natural-language task into an ordered list
 of tool calls — runs on a laptop CPU, and streams every step to Grafana Cloud.
 
-## Elevator pitch (≈ 200 words)
+## Elevator pitch (≈ 250 words)
 
 Every agentic system pays a hidden tax: before it can do anything, a frontier
 model burns tokens just to plan — and for simple tasks, planning can cost more
@@ -40,11 +41,13 @@ Nodus plans 119 correctly (99%, zero regressions). End-to-end, the plan
 significantly improves a local executor (sign test, p = 0.0139), with the
 effect growing as plans get longer — exactly where agents need help most.
 
-This hackathon entry is **powered by Google Cloud** (Gemini + Cloud Storage,
-both imported and called in code — mock-first so the demo runs with zero
-credentials) and activates **Grafana Cloud** through the official `mcp-grafana`
-server as the observability layer: task, plan, every tool call, and the final
-result land in a dashboard as tagged annotations in real time.
+This hackathon entry is **powered by Google Cloud** — the executor runs on
+Gemini, through the Gemini API or **Vertex AI Agent Builder** (`gemini:` /
+`vertex:` prefixes, one SDK, ADC auth), and Cloud Storage delivers the media
+artifact; both are imported and called in code, mock-first so the demo runs
+with zero credentials. It activates **Grafana Cloud** through the official
+`mcp-grafana` server as the observability layer: task, plan, every tool call,
+and the final result land in a dashboard as tagged annotations in real time.
 
 ## Inspiration
 
@@ -99,8 +102,13 @@ deterministically and prints the timeline.
   automatically (pip console script → `uvx` → `npx`); each normalized event
   becomes a `create_annotation` call. MCP failure is never fatal to a run
   (silent fallback + counter).
-- **The validation** — 900+ passing tests, plus a fresh 120-task holdout with
-  zero entity overlap with any training corpus.
+- **The slot-fill layer** — the harness extracts each step's argument target
+  (file names, patterns) with a per-step LLM prompt; hardened parsing turns the
+  string "null" into a real miss and a prompt fix stopped the JSON key from
+  leaking the argument name.
+- **The validation** — 988 passing tests (harness, planner bridge, guardrails,
+  slot-fill, Grafana sink, Google Cloud sink), plus a fresh 120-task holdout
+  with zero entity overlap with any training corpus.
 
 ## Challenges we ran into
 
@@ -118,6 +126,11 @@ deterministically and prints the timeline.
   demo honest and reproducible.
 - **Windows console encoding** — the timeline glyphs (→ ✓) crashed printing on
   a cp1252 console; the demo now forces UTF-8 output with a safe fallback.
+- **The extractor was never the problem** — a slot-fill probe showed both
+  candidate extractors failing structurally: one echoed the argument name as
+  its JSON key (the prompt was leaking it), the other returned the string
+  "null". One prompt fix took the good extractor from 1/3 to 3/3; a parse
+  guard normalized the rest. Lesson: measure before replacing a component.
 
 ## Accomplishments that we're proud of
 
@@ -126,10 +139,12 @@ deterministically and prints the timeline.
   helps the executor on 27 tasks, hurts on 11, and the effect grows with plan
   length.
 - **A 30-second demo with zero dependencies** that nonetheless uses the real
-  324M model when the checkpoint is present — and delivers a media artifact to
-  a (mock or real) Cloud Storage bucket.
-- **900+ tests passing** across the harness, the planner bridge, the guardrails,
-  the Grafana sink, and the Google Cloud sink.
+  324M model when the checkpoint is present (an 8-second media run on GPU) —
+  and delivers a media artifact to a (mock or real) Cloud Storage bucket.
+- **A live landing page** — GitHub Pages (`rua987.github.io/nodus`) replays the
+  real run's timeline and lets anyone run the demo with copy-paste commands.
+- **988 tests passing** across the harness, the planner bridge, the guardrails,
+  the slot-fill extractor, the Grafana sink, and the Google Cloud sink.
 
 ## What we learned
 
@@ -141,8 +156,9 @@ deterministically and prints the timeline.
 
 ## What's next
 
-- **Slot-filling** — extend the planner to also emit argument targets
-  (file names, patterns), moving more of the harness work into the local model.
+- **Deeper slot-filling** — the harness already extracts each step's argument
+  target with a hardened LLM prompt; the next step is moving that into the
+  local model so the planner emits its own argument targets.
 - **Everywhere** — the 324M planner already runs on CPU; port it to edge
   targets (mobile, embedded) so planning is free everywhere.
 - **Bigger executors** — pair the plan with stronger open executors and measure
@@ -152,18 +168,18 @@ deterministically and prints the timeline.
 
 Python · PyTorch · Google Cloud (Gemini · Vertex AI Agent Builder · Cloud
 Storage) · Grafana Cloud ·
-Model Context Protocol (mcp-grafana) · GitHub · Ollama (optional executor)
+Model Context Protocol (mcp-grafana) · GitHub Pages · Ollama (optional executor)
 
 ## Try it out
 
 - GitHub: https://github.com/Rua987/nodus
-- Hosted: https://rua987.github.io/nodus/ (landing page — timeline du run
-  réel, commandes « run it yourself »)
-- Demo video: [PLACEHOLDER: coller le lien YouTube après enregistrement —
-  script + commandes dans `video_script_3min.md`]
-- Gallery image: upload `gallery_timeline.png` (racine du repo) — timeline du
-  run media réel (plan 324M v5 + harnais qui remplit args / vérifie + upload
-  GCS mock + annotations Grafana). Raw après push:
+- Hosted: https://rua987.github.io/nodus/ (landing page — timeline of the real
+  run, copy-paste "run it yourself" commands)
+- Demo video: [PLACEHOLDER: paste the YouTube link after recording — script +
+  commands in `video_script_3min.md`]
+- Gallery image: upload `gallery_timeline.png` (repo root) — timeline of the
+  real media run (324M v5 plan + harness filling args / verifying + mock GCS
+  upload + Grafana annotations). Raw after push:
   https://raw.githubusercontent.com/Rua987/nodus/main/gallery_timeline.png
 
 ---
@@ -172,7 +188,8 @@ Model Context Protocol (mcp-grafana) · GitHub · Ollama (optional executor)
 
 - [ ] Paste each section into its Devpost field (section headings map 1:1).
 - [ ] Upload `gallery_timeline.png` as the gallery image (1/3 slots).
-- [ ] Add the demo-video link after recording (script: `video_script_3min.md`).
-- [ ] Confirm the pitch ≤ 500 words if the form enforces a limit (~230 here).
+- [ ] Add the demo-video link after recording (script: `video_script_3min.md`,
+      static cards ready in `video_cards/`).
+- [ ] Confirm the pitch ≤ 500 words if the form enforces a limit (~250 here).
 - [ ] Under "Built with", select the actual Grafana Cloud / MCP tags if the
       form offers them.
