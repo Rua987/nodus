@@ -436,7 +436,7 @@
       <div class="card">
         <span class="tag">Executor · Agent Builder</span>
         <h3>Gemini via Vertex AI</h3>
-        <p>The ReAct loop runs on <code>vertex:gemini-2.0-flash</code> — the
+        <p>The ReAct loop runs on <code>vertex:gemini-2.5-flash</code> — the
           official <code>google-genai</code> SDK built with <code>vertexai=True</code>,
           the Agent Builder / Gemini Enterprise runtime. Native function calling;
           ADC auth instead of an API key. The same executor also runs on the
@@ -470,7 +470,7 @@ export GOOGLE_CLOUD_PROJECT=&lt;your-gcp-project-id&gt;
 export GOOGLE_APPLICATION_CREDENTIALS=service-account.json
 <span class="dim"># or: gcloud auth application-default login</span>
 python nodus_agent.py "Read script.txt, then write the shoot-day brief, then upload it" \
-  --plan --plan-source nodus --model vertex:gemini-2.0-flash</pre>
+  --plan --plan-source nodus --model vertex:gemini-2.5-flash</pre>
     </div>
   </div>
 </section>
