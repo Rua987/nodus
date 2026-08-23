@@ -4,7 +4,8 @@
 > Metrics cited are verified (see README): **99%**, **p = 0.0139**. The
 > 27/30 arithmetic probe is deliberately NOT cited.
 > Reframed for the Agentic Cinema brief: **media workflow** (shoot-day brief),
-> **Google Cloud in code** (Gemini executor + Cloud Storage delivery), partner
+> **Google Cloud in code AND validated live** (Vertex AI executor + real Cloud
+> Storage upload + real Grafana annotations, one command), partner
 > **Grafana Cloud** (observability), **MIT license** (see LICENSE).
 > Gallery image READY: `gallery_timeline.png` (repo root — real media run).
 > Video assets READY: `video_script_3min.md` (narration) + `video_cards/`
@@ -48,6 +49,9 @@ artifact; both are imported and called in code, mock-first so the demo runs
 with zero credentials. It activates **Grafana Cloud** through the official
 `mcp-grafana` server as the observability layer: task, plan, every tool call,
 and the final result land in a dashboard as tagged annotations in real time.
+The whole pipeline was validated live with one command — a real Vertex
+executor, a real `gs://` upload, and real Grafana annotations confirmed
+through the APIs.
 
 ## Inspiration
 
@@ -64,9 +68,9 @@ model is left with only what it's good at: executing.
    JSON array of tool names from a fixed 8-tool vocabulary.
 2. **Executes** — the harness fills the arguments, runs each tool, and verifies
    the result against guardrails trained on the model's known failure classes.
-   The loop can run on **Gemini** (`gemini:gemini-2.0-flash`, native function
+   The loop can run on **Gemini** (`gemini:gemini-2.5-flash`, native function
    calling via the official `google-genai` SDK), on **Vertex AI — Google Cloud
-   Agent Builder** (`vertex:gemini-2.0-flash`, the same SDK built with
+   Agent Builder** (`vertex:gemini-2.5-flash`, the same SDK built with
    `vertexai=True`, ADC auth), or on a local Ollama model.
 3. **Delivers** — the media workflow (demo task `media`) reads a script, writes
    a shoot-day brief for scene 3, and uploads it to **Google Cloud Storage**
@@ -76,7 +80,8 @@ model is left with only what it's good at: executing.
    stays untouched.
 4. **Observes** — every event (task → plan → tool_call → tool_result → result)
    is pushed to Grafana Cloud through `mcp-grafana` as a tagged annotation, so
-   the whole run is replayable in a dashboard.
+   the whole run is replayable in a dashboard — confirmed live through the
+   Grafana API (25/25 annotations on the validated media run).
 
 Try it: `python demo_agentic_cinema.py --task-key media` — no checkpoint, no
 API key, no cloud credentials, no container. It runs the whole pipeline
@@ -106,9 +111,11 @@ deterministically and prints the timeline.
   (file names, patterns) with a per-step LLM prompt; hardened parsing turns the
   string "null" into a real miss and a prompt fix stopped the JSON key from
   leaking the argument name.
-- **The validation** — 988 passing tests (harness, planner bridge, guardrails,
+- **The validation** — 991 passing tests (harness, planner bridge, guardrails,
   slot-fill, Grafana sink, Google Cloud sink), plus a fresh 120-task holdout
-  with zero entity overlap with any training corpus.
+  with zero entity overlap with any training corpus — and a live end-to-end
+  run (Vertex executor + real Cloud Storage upload + real Grafana annotations)
+  confirmed through the Google Cloud and Grafana APIs.
 
 ## Challenges we ran into
 
@@ -124,6 +131,13 @@ deterministically and prints the timeline.
   imported and called in code, but gated on `NODUS_GCLOUD=real` + ADC; without
   them, a deterministic mock (a `[mock]` marker on every `gs://` URI) keeps the
   demo honest and reproducible.
+- **A geo-blocked API** — the plain Gemini API key was rejected from our region
+  (`400 "User location is not supported"`). Pivoting to **Vertex AI** (ADC
+  auth, far more regions) is what made the live run possible — the Agent
+  Builder path of the brief anyway.
+- **An org policy that blocks service-account keys** — `iam.disableServiceAccountKeyCreation`
+  meant no service-account JSON key. The fix is **user OAuth ADC** (`gcloud
+  auth application-default login`), which needs no key at all.
 - **Windows console encoding** — the timeline glyphs (→ ✓) crashed printing on
   a cp1252 console; the demo now forces UTF-8 output with a safe fallback.
 - **The extractor was never the problem** — a slot-fill probe showed both
@@ -140,10 +154,14 @@ deterministically and prints the timeline.
   length.
 - **A 30-second demo with zero dependencies** that nonetheless uses the real
   324M model when the checkpoint is present (an 8-second media run on GPU) —
-  and delivers a media artifact to a (mock or real) Cloud Storage bucket.
+  and delivers a media artifact to a **real** Cloud Storage bucket.
+- **The full Google Cloud stack runs live in one command** — a Vertex AI
+  executor plans and executes, the artifact uploads to real Cloud Storage
+  (`[real]`), and every step lands as a real Grafana annotation (confirmed via
+  the APIs): the Agent Builder + partner-service story of the brief, proven.
 - **A live landing page** — GitHub Pages (`rua987.github.io/nodus`) replays the
   real run's timeline and lets anyone run the demo with copy-paste commands.
-- **988 tests passing** across the harness, the planner bridge, the guardrails,
+- **991 tests passing** across the harness, the planner bridge, the guardrails,
   the slot-fill extractor, the Grafana sink, and the Google Cloud sink.
 
 ## What we learned

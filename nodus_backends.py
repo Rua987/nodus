@@ -69,9 +69,9 @@ def detect_backend(model: str) -> str:
         'anthropic'
         >>> detect_backend("deepseek-chat")
         'deepseek'
-        >>> detect_backend("gemini:gemini-2.0-flash")
+        >>> detect_backend("gemini:gemini-2.5-flash")
         'gemini'
-        >>> detect_backend("vertex:gemini-2.0-flash")
+        >>> detect_backend("vertex:gemini-2.5-flash")
         'vertex'
         >>> detect_backend("qwen3.5:2b")
         'ollama'
@@ -413,14 +413,14 @@ def _gemini_model_id(model: str) -> str:
     Fonction pure (préserve la casse de l'id réel).
 
     Args:
-        model: Nom complet (ex: 'gemini:gemini-2.0-flash')
+        model: Nom complet (ex: 'gemini:gemini-2.5-flash')
 
     Returns:
-        Id de modèle Gemini (ex: 'gemini-2.0-flash').
+        Id de modèle Gemini (ex: 'gemini-2.5-flash').
 
     Example:
-        >>> _gemini_model_id("gemini:gemini-2.0-flash")
-        'gemini-2.0-flash'
+        >>> _gemini_model_id("gemini:gemini-2.5-flash")
+        'gemini-2.5-flash'
         >>> _gemini_model_id("plain-model")
         'plain-model'
     """
@@ -436,14 +436,14 @@ def _vertex_model_id(model: str) -> str:
     Miroir de _gemini_model_id (préserve la casse de l'id réel).
 
     Args:
-        model: Nom complet (ex: 'vertex:gemini-2.0-flash')
+        model: Nom complet (ex: 'vertex:gemini-2.5-flash')
 
     Returns:
-        Id de modèle Vertex AI (ex: 'gemini-2.0-flash').
+        Id de modèle Vertex AI (ex: 'gemini-2.5-flash').
 
     Example:
-        >>> _vertex_model_id("vertex:gemini-2.0-flash")
-        'gemini-2.0-flash'
+        >>> _vertex_model_id("vertex:gemini-2.5-flash")
+        'gemini-2.5-flash'
         >>> _vertex_model_id("plain-model")
         'plain-model'
     """
@@ -630,7 +630,7 @@ def _chat_gemini(messages: list, model: str, tools: Optional[list]) -> dict:
 
     Args:
         messages: Historique (format Ollama)
-        model:    Nom du modèle (ex: 'gemini:gemini-2.0-flash')
+        model:    Nom du modèle (ex: 'gemini:gemini-2.5-flash')
         tools:    TOOL_SCHEMAS (format OpenAI)
 
     Returns:
@@ -681,7 +681,7 @@ def _chat_vertex(messages: list, model: str, tools: Optional[list]) -> dict:
 
     Args:
         messages: Historique (format Ollama)
-        model:    Nom du modèle (ex: 'vertex:gemini-2.0-flash')
+        model:    Nom du modèle (ex: 'vertex:gemini-2.5-flash')
         tools:    TOOL_SCHEMAS (format OpenAI)
 
     Returns:

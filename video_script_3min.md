@@ -12,7 +12,7 @@ python demo_agentic_cinema.py --task-key media   # the media demo timeline
 python demo_agentic_cinema.py --contrast         # plan vs no-plan side by side
 python demo_agentic_cinema.py --list-tasks       # for the intro card
 # optional clip — real Vertex AI executor (needs GOOGLE_CLOUD_PROJECT + ADC)
-python demo_agentic_cinema.py --live --model vertex:gemini-2.0-flash --task-key media
+python demo_agentic_cinema.py --live --model vertex:gemini-2.5-flash --task-key media
 ```
 If `checkpoints/checkpoint_sft_plan_v5.pt` is present the demo uses the
 **real 324M planner** (plan source: `[nodus]`); otherwise the gold plan
@@ -142,6 +142,6 @@ the real SDK path activates with `NODUS_GCLOUD=real`". Right: the event stream
 - Optional cut: if the segment 3 contrast clip makes the video run long, drop
   the "no plan" part and keep only the with-plan timeline.
 - Optional clip: the live Vertex AI executor (`--live --model
-  vertex:gemini-2.0-flash`) is a strong 10 s shot if the real run is clean —
+  vertex:gemini-2.5-flash`) is a strong 10 s shot if the real run is clean —
   it shows Gemini on Google Cloud's Agent Builder platform functioning as
   built (per the brief). Requires `GOOGLE_CLOUD_PROJECT` + ADC.

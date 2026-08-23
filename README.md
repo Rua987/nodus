@@ -122,6 +122,12 @@ timeline, `NODUS_GRAFANA=mcp` pushes live annotations to Grafana Cloud:
 ● result: Done: wrote shoot_day_brief.md; uploaded production/shoot_day_brief.md.
 ```
 
+With `NODUS_GCLOUD=real` + ADC credentials, the same `gcs_upload` step performs
+a real upload — the URI marker switches from `[mock]` to `[real]`. The full
+stack (Vertex AI executor → real upload → live Grafana annotations) was
+validated end to end; the `[real]` upload and the annotation count are
+confirmed through the Google Cloud and Grafana APIs.
+
 ### Grafana Cloud live setup (one time)
 
 1. Create a free account at [grafana.com](https://grafana.com/cloud/).
@@ -148,7 +154,7 @@ Nodus is powered by Google Cloud in two places — both imported and called in
    ```bash
    export GEMINI_API_KEY=...
    python nodus_agent.py "Read script.txt, then write the shoot-day brief, then upload it" \
-     --plan --plan-source nodus --model gemini:gemini-2.0-flash
+     --plan --plan-source nodus --model gemini:gemini-2.5-flash
    ```
 
    *Optional: `pip install google-genai`. Without the package, the run fails
@@ -162,10 +168,13 @@ Nodus is powered by Google Cloud in two places — both imported and called in
 
    ```bash
    export GOOGLE_CLOUD_PROJECT=<your-gcp-project-id>
-   export GOOGLE_APPLICATION_CREDENTIALS=service-account.json
-   # or: gcloud auth application-default login
+   # user OAuth ADC (recommended — works even where service-account key
+   # creation is disabled by org policy):
+   #   gcloud auth application-default login
+   # or point GOOGLE_APPLICATION_CREDENTIALS at a service-account JSON key:
+   #   export GOOGLE_APPLICATION_CREDENTIALS=service-account.json
    python nodus_agent.py "Read script.txt, then write the shoot-day brief, then upload it" \
-     --plan --plan-source nodus --model vertex:gemini-2.0-flash
+     --plan --plan-source nodus --model vertex:gemini-2.5-flash
    ```
 
    *Region: `GOOGLE_CLOUD_LOCATION` (default `us-central1`); the Vertex AI API
