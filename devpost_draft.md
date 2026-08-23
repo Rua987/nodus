@@ -25,8 +25,12 @@ of tool calls — runs on a laptop CPU, and streams every step to Grafana Cloud.
 
 ## Elevator pitch (≈ 250 words)
 
-Every agentic system pays a hidden tax: before it can do anything, a frontier
-model burns tokens just to plan — and for simple tasks, planning can cost more
+The demo is a real production workflow: a 324M local planner reads a film
+script, plans the tool steps, a Gemini executor writes the shoot-day brief and
+delivers it to Cloud Storage, and Grafana Cloud traces every step — one
+command, end to end. Every agentic system pays a hidden tax: before it can do
+anything, a frontier model burns tokens just to plan — and for simple tasks,
+planning can cost more
 than the work itself. Nodus replaces that planning phase with a 324M-parameter
 transformer, fine-tuned on a single job: turn a natural-language task into an
 ordered sequence of tool names. No arguments, no replanning. The harness fills
@@ -43,6 +47,8 @@ model never saw in training — Nodus plans 119 correctly (99%, zero
 regressions): generalization, not memorized answers. End-to-end, the plan
 significantly improves a local executor (sign test, p = 0.0139), with the
 effect growing as plans get longer — exactly where agents need help most.
+Both arms — plan and no-plan — ran under the same deterministic guardrails,
+so p = 0.0139 isolates the planner's contribution from the harness code.
 
 This hackathon entry is **powered by Google Cloud** — the executor runs on
 Gemini, through the Gemini API or **Vertex AI Agent Builder** (`gemini:` /
@@ -67,7 +73,10 @@ model is left with only what it's good at: executing.
 ## What it does
 
 1. **Plans** — NODUS (the 324M planner) reads a task and outputs an ordered
-   JSON array of tool names from a fixed 8-tool vocabulary.
+   JSON array of tool names from a fixed 8-tool vocabulary. Tool names stay a
+   small trainable set, but step arguments are open-ended — filled per step by
+   an LLM prompt — so the planner's reach scales with the harness, without
+   retraining the model.
 2. **Executes** — the harness fills the arguments, runs each tool, and verifies
    the result against guardrails trained on the model's known failure classes.
    The loop can run on **Gemini** (`gemini:gemini-2.5-flash`, native function
