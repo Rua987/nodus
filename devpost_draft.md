@@ -85,6 +85,16 @@ model is left with only what it's good at: executing.
    the whole run is replayable in a dashboard — confirmed live through the
    Grafana API (25/25 annotations on the validated media run).
 
+**How it's different** — a 324M local planner instead of one more
+frontier-model loop:
+
+| | Monolithic agent loops (e.g. AutoGPT, CrewAI) | Nodus (324M local planner) |
+|---|---|---|
+| **Architecture** | one frontier model plans, reasons, and executes every step via API | decoupled: the local planner emits an ordered tool-name list; the harness fills arguments and verifies |
+| **Planning cost** | repeated API calls — token burn per ReAct loop | free and local: a single small forward pass on CPU/GPU |
+| **Reliability** | drift and over-reasoning on long traces | 99% plan accuracy on a fresh 120-task holdout (unseen entities, 0 regressions) — generalization, not memorized answers |
+| **Observability** | framework-dependent (LangChain, LlamaIndex, …) | native Google Cloud (Gemini via API or Vertex AI Agent Builder, Cloud Storage delivery) + Grafana Cloud MCP — every event streams live as a tagged annotation |
+
 Try it: `python demo_agentic_cinema.py --task-key media` — no checkpoint, no
 API key, no cloud credentials, no container. It runs the whole pipeline
 deterministically and prints the timeline.
