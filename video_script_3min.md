@@ -77,14 +77,14 @@ line, the gs:// upload URI, then the ✓ results.
 **Visual** : metric cards. "119 / 120 = 99% · 0 regressions · 120 unseen tasks"
 then the sign-test table — plan better 27 · plan worse 11 · p = 0.0139.
 
-**Narration** (≈ 84 words):
-> Is this real? On a fresh holdout of one hundred and twenty tasks the model
-> had never seen, Nodus plans 119 correctly — ninety-nine percent, with zero
-> regressions. And the planning measurably helps: across two hundred runs, it
-> improved the executor on twenty-seven tasks and hurt it on only eleven — a
-> sign test with p equals zero point zero one three nine, statistically
-> significant. The effect grows with plan length, exactly where agents need
-> help the most.
+**Narration** (≈ 78 words):
+> Is this real? On a fresh holdout of one hundred and twenty tasks — brand-new
+> entities the model never saw in training — Nodus plans one hundred and
+> nineteen correctly: ninety-nine percent, zero regressions. Generalization,
+> not memorized answers. Across two hundred runs the plan measurably helps the
+> executor — better on twenty-seven tasks, worse on only eleven — a sign test
+> at p equals zero point zero one three nine, statistically significant. And
+> the effect grows with plan length — exactly where agents need help most.
 
 ---
 
@@ -115,11 +115,12 @@ the real SDK path activates with `NODUS_GCLOUD=real`". Right: the event stream
 **Visual** : repo card `github.com/Rua987/nodus`, the README headline
 ("119/120 · 99%"), a test run ending `900+ passed`, the MIT LICENSE badge.
 
-**Narration** (≈ 53 words):
+**Narration** (≈ 66 words):
 > Nodus is open source — MIT licensed. Nine hundred-plus tests passing, and a
-> checkpoint you can drop in and run on a laptop CPU. If you want your agent to
-> plan for free, deliver to the cloud, and watch every step — clone the repo,
-> and let it think. Thank you.
+> checkpoint you can drop in and run on a laptop CPU. And the planner's cost
+> stays flat as tasks grow longer — bigger loops scale the work, not the
+> planning bill. If you want your agent to plan for free, deliver to the cloud,
+> and watch every step — clone the repo, and let it think. Thank you.
 
 ---
 

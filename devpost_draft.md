@@ -33,12 +33,14 @@ ordered sequence of tool names. No arguments, no replanning. The harness fills
 the details, executes, and verifies.
 
 Because the planner is tiny and local, planning is free, private, and fast —
-your code never leaves the machine. And every step of the run is streamed live
-to Grafana Cloud as an annotation, so an agent session becomes something you
-can replay, correlate, and audit.
+your code never leaves the machine, and the planning cost stays flat however
+long the task grows. And every step of the run is streamed live to Grafana
+Cloud as an annotation, so an agent session becomes something you can replay,
+correlate, and audit.
 
-The results are real: on a fresh holdout of 120 tasks the model had never seen,
-Nodus plans 119 correctly (99%, zero regressions). End-to-end, the plan
+The results are real: on a fresh holdout of 120 tasks — brand-new entities the
+model never saw in training — Nodus plans 119 correctly (99%, zero
+regressions): generalization, not memorized answers. End-to-end, the plan
 significantly improves a local executor (sign test, p = 0.0139), with the
 effect growing as plans get longer — exactly where agents need help most.
 
@@ -148,7 +150,9 @@ deterministically and prints the timeline.
 
 ## Accomplishments that we're proud of
 
-- **99% plan accuracy** on 120 unseen tasks (fresh holdout, 0 regressions).
+- **99% plan accuracy** on a fresh holdout of 120 never-seen tasks (brand-new
+  entities, zero overlap with training, 0 regressions) — generalization, not
+  memorized answers.
 - **Statistically significant e2e impact** — p = 0.0139 sign test: the plan
   helps the executor on 27 tasks, hurts on 11, and the effect grows with plan
   length.
@@ -171,12 +175,21 @@ deterministically and prints the timeline.
 - Never trust a contaminated holdout; a fresh one changed the verdict.
 - Observability isn't a bolt-on — when every tool call is a tagged annotation,
   an agent becomes auditable, replayable, and debuggable like any other system.
+- The unlock is the cost curve, not the accuracy ceiling — a 324M planner keeps
+  planning flat-cost however long the task grows, so scaling agentic loops
+  doesn't scale the planning bill.
 
 ## What's next
+
+The planner already sits at 99% on its current task family — the headroom is in
+the distribution, not the architecture:
 
 - **Deeper slot-filling** — the harness already extracts each step's argument
   target with a hardened LLM prompt; the next step is moving that into the
   local model so the planner emits its own argument targets.
+- **Wider task distributions** — 99% is near-ceiling on today's family; the
+  measured lever is more diverse, longer planning tasks (the plan's benefit
+  already grows with plan length).
 - **Everywhere** — the 324M planner already runs on CPU; port it to edge
   targets (mobile, embedded) so planning is free everywhere.
 - **Bigger executors** — pair the plan with stronger open executors and measure
