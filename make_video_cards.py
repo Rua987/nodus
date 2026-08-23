@@ -328,7 +328,7 @@ def build_repo(W, H):
     rr(d, [W / 2 - 150, y + 290, W / 2 + 150, y + 390], 12, fill=SURFACE, outline=BORDER)
     txt(d, W / 2, y + 340, "MIT LICENSE", F_SUB_B, GREEN, label="mit", anchor="mm")
     txt(d, W / 2, y + 450,
-        "988 tests passing · checkpoint you can drop in and run on a laptop CPU",
+        "994 tests passing · checkpoint you can drop in and run on a laptop CPU",
         F_SUB_B, INK_SOFT, label="tests", anchor="mm")
     txt(d, W / 2, y + 500,
         "clone the repo — and let it think.",

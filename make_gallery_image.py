@@ -292,7 +292,7 @@ def main() -> int:
     stats = [
         ("99%",  "plans correct · 120 unseen tasks", C_TASK),
         ("p = 0.0139", "sign test — plan helps e2e", GREEN),
-        ("953",  "tests passing", C_CALL),
+        ("994",  "tests passing", C_CALL),
     ]
     gap = 90
     widths = [max(d.textlength(big, font=F_TITLE), d.textlength(sub, font=F_TINY)) for big, sub, _ in stats]
