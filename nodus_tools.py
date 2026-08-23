@@ -175,6 +175,8 @@ _UNIX_HINTS: dict = {
     r"\bls\s+-":       "Hint: ls with flags fails on Windows. Use the glob TOOL.",
     r"\bgrep\s+-r\b":  "Hint: grep -r fails on Windows. Use the grep TOOL: grep(pattern='...', path='DIR')",
     r"\bgrep\s+-l\b":  "Hint: grep -l fails on Windows. Use the grep TOOL: grep(pattern='...', path='DIR')",
+    r"\bgsutil\b":     "Hint: gsutil is not available here. To verify an uploaded file, use the read_file TOOL (it is in the task workspace) or trust the gcs_upload success message.",
+    r"\bgcloud\s+storage\b": "Hint: gcloud storage is not available here (CLI not installed). To verify an uploaded file, use the read_file TOOL (it is in the task workspace) or trust the gcs_upload success message.",
     r"\s&&\s":         "Hint: && is invalid in PowerShell 5.x. Use ';' or run python with an absolute path.",
 }
 

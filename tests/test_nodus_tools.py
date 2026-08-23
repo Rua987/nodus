@@ -536,6 +536,18 @@ class TestUnixHint:
         hint = _unix_hint("grep -l pattern .")
         assert hint != ""
 
+    def test_gsutil_returns_hint(self):
+        hint = _unix_hint("gsutil cat gs://bucket/file.txt")
+        assert "gsutil" in hint
+
+    def test_gcloud_storage_returns_hint(self):
+        hint = _unix_hint("gcloud storage ls gs://bucket/file.txt")
+        assert "gcloud" in hint
+
+    def test_plain_gcloud_no_hint(self):
+        # "gcloud storage" is the verification pattern; other gcloud use is untouched
+        assert _unix_hint("gcloud config list") == ""
+
     def test_normal_command_returns_empty(self):
         assert _unix_hint("python -m pytest") == ""
 
