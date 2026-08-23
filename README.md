@@ -227,7 +227,7 @@ nodus_backends.py    multi-backend executors: Ollama · DeepSeek · OpenRouter �
 demo_agentic_cinema.py  self-contained demo: task → plan → tools → GCS → Grafana
 video_script_3min.md    3-minute narration script for the hackathon video
 devpost_draft.md        Devpost submission draft (copy-paste ready)
-tests/             991 passing tests (pytest)
+tests/             994 passing tests (pytest)
 ```
 
 ### Guardrails (why 99% is real)
@@ -265,7 +265,7 @@ regressions — a decisive improvement over the previous planner (91%).
 ## Tests
 
 ```bash
-python -m pytest tests/        # 991 passed
+python -m pytest tests/        # 994 passed
 ```
 
 ---

@@ -113,7 +113,7 @@ deterministically and prints the timeline.
   (file names, patterns) with a per-step LLM prompt; hardened parsing turns the
   string "null" into a real miss and a prompt fix stopped the JSON key from
   leaking the argument name.
-- **The validation** — 991 passing tests (harness, planner bridge, guardrails,
+- **The validation** — 994 passing tests (harness, planner bridge, guardrails,
   slot-fill, Grafana sink, Google Cloud sink), plus a fresh 120-task holdout
   with zero entity overlap with any training corpus — and a live end-to-end
   run (Vertex executor + real Cloud Storage upload + real Grafana annotations)
@@ -165,7 +165,7 @@ deterministically and prints the timeline.
   the APIs): the Agent Builder + partner-service story of the brief, proven.
 - **A live landing page** — GitHub Pages (`rua987.github.io/nodus`) replays the
   real run's timeline and lets anyone run the demo with copy-paste commands.
-- **991 tests passing** across the harness, the planner bridge, the guardrails,
+- **994 tests passing** across the harness, the planner bridge, the guardrails,
   the slot-fill extractor, the Grafana sink, and the Google Cloud sink.
 
 ## What we learned
