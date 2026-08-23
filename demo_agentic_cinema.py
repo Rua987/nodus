@@ -477,16 +477,42 @@ def main() -> int:
         except ImportError as exc:  # pragma: no cover
             _out(f"--live requires nodus_agent.py (and Ollama): {exc}")
             return 1
-        with sink_from_env() as sink:
-            kwargs = {"plan": True, "plan_source": "nodus", "plan_names": names, "telemetry": sink}
-            if args.model:
-                kwargs["model"] = args.model
-            if args.text_tools:
-                kwargs["text_tools"] = True
-            res = run_agent(task, **kwargs)
+        # In --live the executor is real (real filesystem): materialize the
+        # task workspace (e.g. script.txt) in a temp dir passed as cwd — script
+        # read → artifact written → gcs_upload anchored there, and the repo is
+        # never polluted (the dir is removed afterwards).
+        ws_dir = None
+        if spec and spec.get("workspace"):
+            import shutil
+            import tempfile
+            ws_dir = tempfile.mkdtemp(prefix="nodus_ws_")
+            for fname, content in spec["workspace"].items():
+                with open(os.path.join(ws_dir, fname), "w", encoding="utf-8") as fh:
+                    fh.write(content)
+        try:
+            with sink_from_env() as sink:
+                kwargs = {"plan": True, "plan_source": "nodus", "plan_names": names, "telemetry": sink}
+                if args.model:
+                    kwargs["model"] = args.model
+                if args.text_tools:
+                    kwargs["text_tools"] = True
+                if ws_dir:
+                    kwargs["cwd"] = ws_dir
+                res = run_agent(task, **kwargs)
+        finally:
+            if ws_dir:
+                shutil.rmtree(ws_dir, ignore_errors=True)
         _out(f"answer: {res.answer}")
         _out("")
         _out(sink.summary())
+        if sink.mode == "mcp":
+            n_ok = getattr(sink, "pushed", len(sink.events))
+            _out(f"[grafana] pushed {n_ok}/{len(sink.events)} annotations (tags: nodus, agentic-cinema)")
+            if getattr(sink, "errors", None):
+                _out(f"[grafana] {len(sink.errors)} push error(s): {sink.errors[0][:90]}")
+        else:
+            _out("telemetry: mock mode — run with NODUS_GRAFANA=mcp (plus GRAFANA_URL and")
+            _out("  GRAFANA_SERVICE_ACCOUNT_TOKEN) to push live annotations to Grafana Cloud")
         return 0
 
     sink = sink_from_env()
