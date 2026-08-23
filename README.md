@@ -69,8 +69,8 @@ result — into a Grafana dashboard as live annotations:
 # 1. Install Python deps (torch optional — planner runs on CPU)
 pip install -r requirements-ci.txt
 
-# 2. Drop the planner checkpoint into checkpoints/
-#    (checkpoint_sft_plan_v5.pt, ~940 MB — see "Checkpoints" below)
+# 2. Optional: drop the planner checkpoint into checkpoints/ to use the
+#    real 324M planner (~940 MB — see "Checkpoints" below)
 
 # 3. Plan a task (mock telemetry, no Grafana account needed)
 python nodus_plan_local.py --plan-once
@@ -241,14 +241,24 @@ never *replaces* the executor — it makes the suggestion robust.
 
 ## Checkpoints
 
-The model weights are **not** committed to git (too large). Obtain
-`checkpoints/checkpoint_sft_plan_v5.pt` from the release assets (or your own
-SFT) and point `NODUS_PLAN_CKPT` at it:
+The model weights are **not** committed to git (too large) — and you don't
+need them to run the demo: `python demo_agentic_cinema.py --task-key media`
+replays the pipeline deterministically with **no checkpoint, no credentials**
+(see "Run the demo" above). Adding the weights switches the same command to
+the **real 324M planner** (an ~8-second media run on GPU):
 
 ```bash
 export NODUS_PLAN_CKPT=checkpoints/checkpoint_sft_plan_v5.pt
 # or: $env:NODUS_PLAN_CKPT = "checkpoints\checkpoint_sft_plan_v5.pt"
 ```
+
+Where the weights come from:
+
+- **Your own SFT** — the training recipe is summarized under "Training &
+  method" below (20k planning examples, ~3.5 GPU-minutes).
+- **The maintainer's v5 production weights** — the ones behind the 99% holdout
+  and p = 0.0139 numbers cited above. Open a GitHub issue on this repo and the
+  maintainer will point you to a download.
 
 ---
 
