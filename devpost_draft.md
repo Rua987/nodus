@@ -10,7 +10,7 @@
 > Gallery image READY: `gallery_timeline.png` (repo root — real media run).
 > Video assets READY: `video_script_3min.md` (narration) + `video_cards/`
 > (9 static PNGs, committed b2acaaa) for the editor.
-> One placeholder left: the demo-video link (add after recording).
+> Demo video uploaded: https://youtu.be/LsHFBqHMd-c (3:07 montage, unlisted).
 
 ---
 
@@ -225,8 +225,7 @@ Model Context Protocol (mcp-grafana) · GitHub Pages · Ollama (optional executo
 - GitHub: https://github.com/Rua987/nodus
 - Hosted: https://rua987.github.io/nodus/ (landing page — timeline of the real
   run, copy-paste "run it yourself" commands)
-- Demo video: [PLACEHOLDER: paste the YouTube link after recording — script +
-  commands in `video_script_3min.md`]
+- Demo video: https://youtu.be/LsHFBqHMd-c
 - Gallery image: upload `gallery_timeline.png` (repo root) — timeline of the
   real media run (324M v5 plan + harness filling args / verifying + mock GCS
   upload + Grafana annotations). Raw after push:
