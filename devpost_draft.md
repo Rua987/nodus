@@ -198,6 +198,40 @@ deterministically and prints the timeline.
   planning flat-cost however long the task grows, so scaling agentic loops
   doesn't scale the planning bill.
 
+## What we built during the hackathon
+
+Nodus didn't start as a hackathon project. It grew out of **months of prior
+work on LINUS**, a research line on making agentic planning local, cheap, and
+provable — that is where the 324M planner and its holdout results come from.
+The Agentic Cinema hackathon wasn't on the roadmap when we started. When the
+brief appeared, we treated it as the forcing function to turn that research
+into a complete, media-focused, verifiable system — and to prove the
+"local planner + frontier executor" stack against *real* Google Cloud
+services. What the hackathon period actually added:
+
+- **The media framing** — `demo_agentic_cinema.py --task-key media` reads a
+  film script and produces a shoot-day brief for a specific scene, matching
+  the brief's media/entertainment value chain.
+- **Google Cloud in code and validated live** — the executor runs on Gemini
+  through the official `google-genai` SDK, via the API or **Vertex AI Agent
+  Builder** (`vertexai=True`, ADC auth); `gcs_upload` delivers the artifact to
+  a **real** Cloud Storage bucket. Both SDKs are imported and called in code,
+  gated on credentials so the repo stays credential-free.
+- **Grafana Cloud live** — `mcp-grafana` streams every event as a tagged
+  annotation; the validated run pushed 25/25 annotations, confirmed through
+  the Grafana API.
+- **994 passing tests** for the harness, planner bridge, guardrails,
+  slot-fill, Grafana sink, and Google Cloud sink.
+- **Shippable artifacts** — a live landing page (`rua987.github.io/nodus`), a
+  1:43 demo video, and release `v1.0.0` with the production weights (SHA256
+  `9637ae13…`) so the demo runs the real 324M model.
+- **Production hardening** — cp1252 console encoding, the slot-fill "null"
+  regression, the live-mode annotation fix, Windows log-rotation tolerance.
+
+The months of LINUS work are the foundation; the list above is what the
+hackathon period added on top of it — and it's all reproducible from the
+public repo.
+
 ## What's next
 
 The planner already sits at 99% on its current task family — the headroom is in
@@ -236,6 +270,9 @@ Model Context Protocol (mcp-grafana) · GitHub Pages · Ollama (optional executo
 ### Quick copy checklist
 
 - [ ] Paste each section into its Devpost field (section headings map 1:1).
+- [ ] "What we built during the hackathon" → paste into the "How we built it"
+      field (top), or append it where the form lets you add context — it's the
+      evidence for the pre-existing-work rule.
 - [ ] Upload `gallery_timeline.png` as the gallery image (1/3 slots).
 - [x] Demo video link in place: https://youtu.be/fy4lVSboR0I.
 - [ ] Confirm the pitch ≤ 500 words if the form enforces a limit (~360 here).
