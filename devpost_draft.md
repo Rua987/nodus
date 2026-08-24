@@ -10,8 +10,8 @@
 > Gallery image READY: `gallery_timeline.png` (repo root — real media run).
 > Video assets READY: `video_script_3min.md` (narration) + `video_cards/`
 > (9 static PNGs, committed b2acaaa) for the editor.
-> Demo video uploaded: https://youtu.be/LsHFBqHMd-c (1:43 tight cut — local
-> plan → Gemini executes → Grafana traces; unlisted).
+> Demo video uploaded: https://youtu.be/fy4lVSboR0I (1:43 tight cut — local
+> plan → Gemini executes → Grafana traces).
 
 ---
 
@@ -226,7 +226,7 @@ Model Context Protocol (mcp-grafana) · GitHub Pages · Ollama (optional executo
 - GitHub: https://github.com/Rua987/nodus
 - Hosted: https://rua987.github.io/nodus/ (landing page — timeline of the real
   run, copy-paste "run it yourself" commands)
-- Demo video: https://youtu.be/LsHFBqHMd-c
+- Demo video: https://youtu.be/fy4lVSboR0I
 - Gallery image: upload `gallery_timeline.png` (repo root) — timeline of the
   real media run (324M v5 plan + harness filling args / verifying + mock GCS
   upload + Grafana annotations). Raw after push:
