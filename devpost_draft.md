@@ -10,7 +10,8 @@
 > Gallery image READY: `gallery_timeline.png` (repo root — real media run).
 > Video assets READY: `video_script_3min.md` (narration) + `video_cards/`
 > (9 static PNGs, committed b2acaaa) for the editor.
-> Demo video uploaded: https://youtu.be/LsHFBqHMd-c (3:07 montage, unlisted).
+> Demo video uploaded: https://youtu.be/LsHFBqHMd-c (1:43 tight cut — local
+> plan → Gemini executes → Grafana traces; unlisted).
 
 ---
 

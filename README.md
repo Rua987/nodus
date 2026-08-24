@@ -254,11 +254,13 @@ export NODUS_PLAN_CKPT=checkpoints/checkpoint_sft_plan_v5.pt
 
 Where the weights come from:
 
+- **Download the v5 production weights** — the ones behind the 99% holdout and
+  p = 0.0139 numbers cited above: release **v1.0.0**,
+  [`checkpoint_sft_plan_v5.pt`](https://github.com/Rua987/nodus/releases/tag/v1.0.0)
+  (~1 GB, SHA256 `9637ae13…`). Drop it into `checkpoints/` and the demo uses
+  the real 324M planner.
 - **Your own SFT** — the training recipe is summarized under "Training &
   method" below (20k planning examples, ~3.5 GPU-minutes).
-- **The maintainer's v5 production weights** — the ones behind the 99% holdout
-  and p = 0.0139 numbers cited above. Open a GitHub issue on this repo and the
-  maintainer will point you to a download.
 
 ---
 
