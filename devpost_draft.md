@@ -30,11 +30,10 @@ script, plans the tool steps, a Gemini executor writes the shoot-day brief and
 delivers it to Cloud Storage, and Grafana Cloud traces every step — one
 command, end to end. Every agentic system pays a hidden tax: before it can do
 anything, a frontier model burns tokens just to plan — and for simple tasks,
-planning can cost more
-than the work itself. Nodus replaces that planning phase with a 324M-parameter
-transformer, fine-tuned on a single job: turn a natural-language task into an
-ordered sequence of tool names. No arguments, no replanning. The harness fills
-the details, executes, and verifies.
+planning can cost more than the work itself. Nodus replaces that planning
+phase with a 324M-parameter transformer, fine-tuned on a single job: turn a
+natural-language task into an ordered sequence of tool names. No arguments,
+no replanning. The harness fills the details, executes, and verifies.
 
 Because the planner is tiny and local, planning is free, private, and fast —
 your code never leaves the machine, and the planning cost stays flat however
@@ -48,7 +47,7 @@ regressions): generalization, not memorized answers. End-to-end, the plan
 significantly improves a local executor (sign test, p = 0.0139), with the
 effect growing as plans get longer — exactly where agents need help most.
 Both arms — plan and no-plan — ran under the same deterministic guardrails,
-so p = 0.0139 isolates the planner's contribution from the harness code.
+so the effect isolates the planner's contribution from the harness code.
 
 This hackathon entry is **powered by Google Cloud** — the executor runs on
 Gemini, through the Gemini API or **Vertex AI Agent Builder** (`gemini:` /
@@ -170,8 +169,8 @@ deterministically and prints the timeline.
 ## Accomplishments that we're proud of
 
 - **99% plan accuracy** on a fresh holdout of 120 never-seen tasks (brand-new
-  entities, zero overlap with training, 0 regressions) — generalization, not
-  memorized answers.
+  entities, zero overlap with training, 0 regressions) — the model genuinely
+  generalizes to entities it never met in training.
 - **Statistically significant e2e impact** — p = 0.0139 sign test: the plan
   helps the executor on 27 tasks, hurts on 11, and the effect grows with plan
   length.
