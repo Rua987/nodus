@@ -8,10 +8,9 @@
 > Storage upload + real Grafana annotations, one command), partner
 > **Grafana Cloud** (observability), **MIT license** (see LICENSE).
 > Gallery image READY: `gallery_timeline.png` (repo root — real media run).
-> Video assets READY: `video_script_3min.md` (narration) + `video_cards/`
-> (9 static PNGs, committed b2acaaa) for the editor.
-> Demo video uploaded: https://youtu.be/fy4lVSboR0I (1:43 tight cut — local
-> plan → Gemini executes → Grafana traces).
+> Demo video UPLOADED: https://youtu.be/fy4lVSboR0I (1:43 tight cut — local
+> plan → Gemini executes → Grafana traces). Video kit (narration + static
+> cards) archived in-repo as `video_script_3min.md` + `video_cards/`.
 
 ---
 
@@ -24,7 +23,7 @@
 A 324M-parameter planner turns any natural-language task into an ordered list
 of tool calls — runs on a laptop CPU, and streams every step to Grafana Cloud.
 
-## Elevator pitch (≈ 250 words)
+## Elevator pitch (≈ 360 words)
 
 The demo is a real production workflow: a 324M local planner reads a film
 script, plans the tool steps, a Gemini executor writes the shoot-day brief and
@@ -238,8 +237,7 @@ Model Context Protocol (mcp-grafana) · GitHub Pages · Ollama (optional executo
 
 - [ ] Paste each section into its Devpost field (section headings map 1:1).
 - [ ] Upload `gallery_timeline.png` as the gallery image (1/3 slots).
-- [ ] Add the demo-video link after recording (script: `video_script_3min.md`,
-      static cards ready in `video_cards/`).
-- [ ] Confirm the pitch ≤ 500 words if the form enforces a limit (~250 here).
+- [x] Demo video link in place: https://youtu.be/fy4lVSboR0I.
+- [ ] Confirm the pitch ≤ 500 words if the form enforces a limit (~360 here).
 - [ ] Under "Built with", select the actual Grafana Cloud / MCP tags if the
       form offers them.
