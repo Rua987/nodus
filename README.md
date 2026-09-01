@@ -10,6 +10,9 @@ Cloud.**
 > — no arguments, no replanning. The harness fills the arguments, verifies each
 > step, executes, and **delivers** the final artifact (Google Cloud Storage).
 
+**Agentic Cinema judges:** see **[AGENTIC_CINEMA.md](AGENTIC_CINEMA.md)** for the
+compliant demo path (Vertex AI / Gemini + Grafana Cloud MCP only).
+
 ---
 
 ## Why Nodus?
@@ -78,25 +81,29 @@ python nodus_plan_local.py --plan-once
 #     python nodus_plan_local.py --plan-once
 #   → {"ok": true, "names": ["read_file", "grep", "edit_file"]}
 
-# 4. Stream the whole run into Grafana (live) or to JSONL (mock)
-NODUS_GRAFANA=mcp python nodus_agent.py "..." --plan --plan-source nodus
-NODUS_GRAFANA=jsonl:run.jsonl python nodus_agent.py "..." --plan --plan-source nodus
+# 4. Agentic Cinema judges — live run (Vertex + Grafana; see AGENTIC_CINEMA.md)
+python demo_agentic_cinema.py --live --model vertex:gemini-2.5-flash --task-key media
+
+# 4b. Or stream a custom task via nodus_agent (Vertex executor required)
+NODUS_HACKATHON=1 NODUS_GRAFANA=mcp python nodus_agent.py "..." \
+  --plan --plan-source nodus --model vertex:gemini-2.5-flash
 ```
 
 ## Run the demo (30 seconds, zero dependencies)
 
 `demo_agentic_cinema.py` replays the full pipeline end to end — task → plan →
-tools → delivery → Grafana — deterministically, with **no checkpoint, no Ollama,
-no token, no cloud credentials** required. Add
+tools → delivery → Grafana — deterministically, with **no checkpoint, no cloud
+credentials, no LLM API** required for the mock path. Add
 `checkpoints/checkpoint_sft_plan_v5.pt` (or set `NODUS_PLAN_CKPT`) and the same
 command uses the **real 324M planner** instead of the gold plan:
 
 ```bash
-python demo_agentic_cinema.py                 # plan → tools → timeline
+python demo_agentic_cinema.py                 # plan → tools → timeline (mock)
 python demo_agentic_cinema.py --list-tasks    # show the curated demo tasks
 python demo_agentic_cinema.py --task-key media # media workflow (shoot-day brief)
 python demo_agentic_cinema.py --contrast      # plan vs no-plan side by side
-python demo_agentic_cinema.py --live          # real Ollama executor (optional)
+python demo_agentic_cinema.py --live --model vertex:gemini-2.5-flash --task-key media
+# live: Vertex AI executor + real GCS + Grafana (ADC + Grafana token — see AGENTIC_CINEMA.md)
 ```
 
 The **media** task is the Agentic Cinema use case: read the script, save the
@@ -221,10 +228,10 @@ nodus_verify.py      guardrails: normalize + 7 predicates + transformations
 nodus_grafana.py     Grafana Cloud telemetry sink (mock / mcp / off)
 nodus_gcloud.py      Google Cloud Storage delivery (mock / real / off)
 nodus_mcp_client.py  multi-server MCP registry (namespacing, pinning)
-nodus_backends.py    multi-backend executors: Ollama · DeepSeek · OpenRouter ·
-                     Anthropic · Gemini · Vertex AI (gemini:/vertex: prefixes,
-                     google-genai, vertexai=True for the Agent Builder runtime)
+nodus_backends.py    Google Cloud executors (Gemini · Vertex AI via google-genai);
+                     local-dev backends gated when NODUS_HACKATHON=1 (see AGENTIC_CINEMA.md)
 demo_agentic_cinema.py  self-contained demo: task → plan → tools → GCS → Grafana
+AGENTIC_CINEMA.md       hackathon judges: compliant commands + stack map
 video_script_3min.md    3-minute narration script for the hackathon video
 devpost_draft.md        Devpost submission draft (copy-paste ready)
 tests/             994 passing tests (pytest)

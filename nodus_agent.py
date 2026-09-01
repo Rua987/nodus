@@ -117,7 +117,7 @@ from nodus_verify import (  # noqa: E402
     verify_commands,
     verify_files,
 )
-from nodus_backends import chat_api, detect_backend  # noqa: E402
+from nodus_backends import chat_api, detect_backend, assert_hackathon_llm_model  # noqa: E402
 from nodus_playbook import (  # noqa: E402
     add_recipe,
     format_recipes_for_prompt,
@@ -550,6 +550,7 @@ def _chat(messages: list, model: str, tools: Optional[list] = None, *,
     interne (requis pour les reponses JSON courtes type slot-fill). Top-level
     Ollama seulement ; ignore par les backends cloud.
     """
+    assert_hackathon_llm_model(model)
     api_messages = messages
     if text_tools and detect_backend(model) != "ollama":
         api_messages = _normalize_messages_text_tools(messages)

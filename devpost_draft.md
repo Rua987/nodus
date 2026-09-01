@@ -8,9 +8,9 @@
 > Storage upload + real Grafana annotations, one command), partner
 > **Grafana Cloud** (observability), **MIT license** (see LICENSE).
 > Gallery image READY: `gallery_timeline.png` (repo root — real media run).
-> Demo video UPLOADED: https://youtu.be/fy4lVSboR0I (1:43 tight cut — local
-> plan → Gemini executes → Grafana traces). Video kit (narration + static
-> cards) archived in-repo as `video_script_3min.md` + `video_cards/`.
+> Demo video UPLOADED: https://youtu.be/pG2VAql7aog (~3:23 terminal recording —
+> `demo_agentic_cinema.py` mock + live Vertex/GCS/Grafana). Older montage:
+> fy4lVSboR0I (1:43). Kit: `video_script_3min.md` + `video_cards/`.
 
 ---
 
@@ -78,10 +78,11 @@ model is left with only what it's good at: executing.
    retraining the model.
 2. **Executes** — the harness fills the arguments, runs each tool, and verifies
    the result against guardrails trained on the model's known failure classes.
-   The loop can run on **Gemini** (`gemini:gemini-2.5-flash`, native function
-   calling via the official `google-genai` SDK), on **Vertex AI — Google Cloud
+   The loop runs on **Gemini** (`gemini:gemini-2.5-flash`, native function
+   calling via the official `google-genai` SDK) or on **Vertex AI — Google Cloud
    Agent Builder** (`vertex:gemini-2.5-flash`, the same SDK built with
-   `vertexai=True`, ADC auth), or on a local Ollama model.
+   `vertexai=True`, ADC auth). The Agentic Cinema submission uses **Vertex only**
+   (see `AGENTIC_CINEMA.md`).
 3. **Delivers** — the media workflow (demo task `media`) reads a script, writes
    a shoot-day brief for scene 3, and uploads it to **Google Cloud Storage**
    (`gcs_upload` — mock-first: deterministic `gs://` URI with no credentials,
@@ -222,7 +223,8 @@ services. What the hackathon period actually added:
 - **994 passing tests** for the harness, planner bridge, guardrails,
   slot-fill, Grafana sink, and Google Cloud sink.
 - **Shippable artifacts** — a live landing page (`rua987.github.io/nodus`), a
-  1:43 demo video, and release `v1.0.0` with the production weights (SHA256
+  ~3 min terminal demo video (live Vertex + Grafana), and release `v1.0.0`
+  with the production weights (SHA256
   `9637ae13…`) so the demo runs the real 324M model.
 - **Production hardening** — cp1252 console encoding, the slot-fill "null"
   regression, the live-mode annotation fix, Windows log-rotation tolerance.
@@ -251,14 +253,14 @@ the distribution, not the architecture:
 
 Python · PyTorch · Google Cloud (Gemini · Vertex AI Agent Builder · Cloud
 Storage) · Grafana Cloud ·
-Model Context Protocol (mcp-grafana) · GitHub Pages · Ollama (optional executor)
+Model Context Protocol (mcp-grafana) · GitHub Pages
 
 ## Try it out
 
 - GitHub: https://github.com/Rua987/nodus
 - Hosted: https://rua987.github.io/nodus/ (landing page — timeline of the real
   run, copy-paste "run it yourself" commands)
-- Demo video: https://youtu.be/fy4lVSboR0I
+- Demo video: https://youtu.be/pG2VAql7aog
 - Gallery image: upload `gallery_timeline.png` (repo root) — timeline of the
   real media run (324M v5 plan + harness filling args / verifying + mock GCS
   upload + Grafana annotations). Raw after push:
@@ -273,7 +275,7 @@ Model Context Protocol (mcp-grafana) · GitHub Pages · Ollama (optional executo
       field (top), or append it where the form lets you add context — it's the
       evidence for the pre-existing-work rule.
 - [ ] Upload `gallery_timeline.png` as the gallery image (1/3 slots).
-- [x] Demo video link in place: https://youtu.be/fy4lVSboR0I.
+- [x] Demo video link in place: https://youtu.be/pG2VAql7aog (~3:23 terminal).
 - [ ] Confirm the pitch ≤ 500 words if the form enforces a limit (~360 here).
 - [ ] Under "Built with", select the actual Grafana Cloud / MCP tags if the
       form offers them.

@@ -1,8 +1,12 @@
 # 🤖 NODUS Agent — ReAct multi-couches
 
-> Agent de codage ReAct (Think → Tool → Observe → …) bâti sur Ollama **et** des
-> backends API (Claude, DeepSeek V4, OpenRouter free). 22 modules cœur, 100% de
-> couverture de tests sur chacun.
+> **Agentic Cinema submission:** use only Google Cloud AI + Grafana — see
+> **[AGENTIC_CINEMA.md](AGENTIC_CINEMA.md)**. Third-party LLM backends below are
+> for local development; `NODUS_HACKATHON=1` blocks them at runtime.
+
+> Agent de codage ReAct (Think → Tool → Observe → …) avec exécuteur Google Cloud
+> (Gemini / Vertex AI) et backends locaux optionnels pour le dev. 22 modules cœur,
+> 100% de couverture de tests sur chacun.
 
 Philosophie : **le chemin, la vérité, pas le résultat.** L'agent ne triche pas,
 ne saute pas d'étape, et ne certifie pas un succès qu'il n'a pas vérifié.
@@ -11,10 +15,14 @@ ne saute pas d'étape, et ne certifie pas un succès qu'il n'a pas vérifié.
 
 ## 🚀 Démarrage rapide
 
-**Ollama est un backend parmi d'autres, pas un prérequis.** Si tu as une clé API
-(OpenRouter / DeepSeek / Anthropic), tu peux lancer une tâche directement sans
-rien installer. Ollama ne sert que pour les modèles locaux (`qwen3.5:2b`, …) —
-détecté automatiquement par `nodus_backends.detect_backend` selon le nom de modèle.
+**Soumission hackathon (Vertex AI uniquement) :**
+
+```bash
+python demo_agentic_cinema.py --live --model vertex:gemini-2.5-flash --task-key media
+```
+
+**Développement local (hors soumission)** — Ollama et APIs tierces restent
+disponibles sans `NODUS_HACKATHON=1`. Détection via `nodus_backends.detect_backend`.
 
 ```bash
 # Option 1 — backend cloud (aucune install locale)

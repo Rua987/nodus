@@ -402,7 +402,7 @@
     </div>
     <div class="pipeline">
       <div class="step"><span class="n">01</span><h3>Plan</h3><p>The 324M planner reads the task and emits a fixed 8-tool vocabulary — just names, in order.</p><span class="verb">→ ["read_file", "write_file", "bash", "gcs_upload"]</span></div>
-      <div class="step"><span class="n">02</span><h3>Execute</h3><p>The harness fills the arguments, runs each tool, and verifies the result against guardrails.</p><span class="verb">→ runs on Gemini · Vertex AI · Ollama</span></div>
+      <div class="step"><span class="n">02</span><h3>Execute</h3><p>The harness fills the arguments, runs each tool, and verifies the result against guardrails.</p><span class="verb">→ Gemini via Vertex AI (Agent Builder)</span></div>
       <div class="step"><span class="n">03</span><h3>Deliver</h3><p>The media workflow uploads the finished artifact to Google Cloud Storage.</p><span class="verb">→ gs://nodus-media-demo/production/…</span></div>
       <div class="step"><span class="n">04</span><h3>Observe</h3><p>Every event becomes a tagged Grafana annotation — the dashboard is the agent’s scope.</p><span class="verb">→ mcp-grafana · create_annotation</span></div>
     </div>
@@ -439,8 +439,8 @@
         <p>The ReAct loop runs on <code>vertex:gemini-2.5-flash</code> — the
           official <code>google-genai</code> SDK built with <code>vertexai=True</code>,
           the Agent Builder / Gemini Enterprise runtime. Native function calling;
-          ADC auth instead of an API key. The same executor also runs on the
-          Gemini API (<code>gemini:</code> prefix) or a local Ollama model.</p>
+          ADC auth instead of an API key. The same SDK also supports the
+          Gemini API (<code>gemini:</code> prefix) for other regions.</p>
         <ul>
           <li><b>Import &amp; call in code</b> — no key in the repo</li>
           <li><b>Guards</b> — fails loudly only if you request a vertex/gemini model</li>
@@ -556,10 +556,15 @@ python nodus_agent.py "Read script.txt, then write the shoot-day brief, then upl
     </div>
 
     <div class="cmd">
-      <div class="bar"><span class="lbl">4 · stream the whole run into Grafana</span><button class="copybtn" data-copy="NODUS_GRAFANA=mcp python nodus_agent.py 'deploy the app then verify health' --plan --plan-source nodus">copy</button></div>
-<pre class="run"><span class="cmt"># live annotations via mcp-grafana — or NODUS_GRAFANA=jsonl:run.jsonl for mock</span>
-<span class="prompt">$</span> NODUS_GRAFANA=mcp python nodus_agent.py "deploy the app then verify health" \
-    --plan --plan-source nodus</pre>
+      <div class="bar"><span class="lbl">4 · mock timeline (no LLM API)</span><button class="copybtn" data-copy="NODUS_GRAFANA=jsonl:run.jsonl python demo_agentic_cinema.py --task-key media">copy</button></div>
+<pre class="run"><span class="cmt"># same pipeline as judges, fully offline — JSONL instead of Grafana MCP</span>
+<span class="prompt">$</span> NODUS_GRAFANA=jsonl:run.jsonl python demo_agentic_cinema.py --task-key media</pre>
+    </div>
+
+    <div class="cmd">
+      <div class="bar"><span class="lbl">5 · Agentic Cinema judges (live Vertex + GCS + Grafana)</span><button class="copybtn" data-copy="python demo_agentic_cinema.py --live --model vertex:gemini-2.5-flash --task-key media">copy</button></div>
+<pre class="run"><span class="cmt"># see AGENTIC_CINEMA.md — Google Cloud AI + Grafana MCP only</span>
+<span class="prompt">$</span> python demo_agentic_cinema.py --live --model vertex:gemini-2.5-flash --task-key media</pre>
     </div>
 
     <div class="checklist">

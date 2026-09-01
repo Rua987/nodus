@@ -38,8 +38,33 @@ ANTHROPIC_MAX_TOKENS = 4096
 OPENROUTER_PREFIX = "openrouter/"
 GEMINI_PREFIX = "gemini:"
 VERTEX_PREFIX = "vertex:"
+HACKATHON_DEFAULT_MODEL = "vertex:gemini-2.5-flash"
 
 _HERE = Path(__file__).parent.resolve()
+
+
+def hackathon_mode() -> bool:
+    """True when Agentic Cinema / submission guard is active."""
+    return os.environ.get("NODUS_HACKATHON", "").strip().lower() in (
+        "1", "true", "yes", "on",
+    )
+
+
+def assert_hackathon_llm_model(model: str) -> None:
+    """
+    Block third-party LLM backends when NODUS_HACKATHON=1.
+
+    Allows only Google Cloud AI (gemini:/vertex: prefixes). See AGENTIC_CINEMA.md.
+    """
+    if not hackathon_mode():
+        return
+    backend = detect_backend(model)
+    if backend not in ("gemini", "vertex"):
+        raise RuntimeError(
+            f"NODUS_HACKATHON=1 allows only Google Cloud AI "
+            f"(gemini:… or vertex:…). Got {model!r} ({backend}). "
+            f"See AGENTIC_CINEMA.md."
+        )
 
 
 # ── Détection du backend ──────────────────────────────────────────────────────
@@ -743,7 +768,9 @@ def chat_api(messages: list, model: str, tools: Optional[list]) -> dict:
 
     Raises:
         ValueError: si le backend n'est pas un backend API.
+        RuntimeError: si NODUS_HACKATHON=1 et le modèle n'est pas Google Cloud AI.
     """
+    assert_hackathon_llm_model(model)
     backend = detect_backend(model)
     if backend == "deepseek":
         return _chat_deepseek(messages, model, tools)

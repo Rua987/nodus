@@ -37,7 +37,8 @@ Usage:
     python demo_agentic_cinema.py --task "Save a new file out.txt with a stub"
     python demo_agentic_cinema.py --contrast      # plan vs no-plan side by side
     python demo_agentic_cinema.py --no-nodus      # force the gold plan (skip real NODUS)
-    python demo_agentic_cinema.py --live          # real Ollama executor (optional)
+    python demo_agentic_cinema.py --live --model vertex:gemini-2.5-flash --task-key media
+        # live: Vertex AI executor + real GCS + Grafana (see AGENTIC_CINEMA.md)
 """
 
 from __future__ import annotations
@@ -55,6 +56,7 @@ from typing import Dict, List, Optional, Tuple
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from nodus_grafana import GrafanaSink, sink_from_env  # noqa: E402
+from nodus_backends import HACKATHON_DEFAULT_MODEL  # noqa: E402
 
 _HERE = Path(__file__).resolve().parent
 
@@ -449,16 +451,16 @@ def main() -> int:
     ap.add_argument("--task", default=None, help="custom task text (NODUS plans it when the checkpoint is present)")
     ap.add_argument("--no-nodus", action="store_true", help="force the deterministic gold plan (skip real NODUS)")
     ap.add_argument("--contrast", action="store_true", help="show plan vs no-plan side by side")
-    ap.add_argument("--live", action="store_true", help="run the real executor end to end (optional)")
+    ap.add_argument("--live", action="store_true", help="run Vertex/Gemini executor end to end (see AGENTIC_CINEMA.md)")
     ap.add_argument(
         "--model", "-m",
         default=None,
-        help="Executor model (default: Ollama qwen3.5:2b; OpenRouter via openrouter/… prefix)",
+        help=f"Executor model (default with --live: {HACKATHON_DEFAULT_MODEL})",
     )
     ap.add_argument(
         "--text-tools",
         action="store_true",
-        help="With --live + OpenRouter: JSON-text tools for models without function calling",
+        help="With --live: JSON-text tools for models without native function calling",
     )
     args = ap.parse_args()
 
@@ -469,13 +471,16 @@ def main() -> int:
         return 0
 
     if args.live:
+        os.environ.setdefault("NODUS_HACKATHON", "1")
+        if not args.model:
+            args.model = HACKATHON_DEFAULT_MODEL
         spec = DEMO_TASKS.get(args.task_key) if args.task_key else None
         task = spec["task"] if spec else (args.task or DEMO_TASKS["inspect"]["task"])
         names = [n for n, _ in spec["plan"]] if spec else None
         try:
             from nodus_agent import run_agent
         except ImportError as exc:  # pragma: no cover
-            _out(f"--live requires nodus_agent.py (and Ollama): {exc}")
+            _out(f"--live requires nodus_agent.py: {exc}")
             return 1
         # In --live the executor is real (real filesystem): materialize the
         # task workspace (e.g. script.txt) in a temp dir passed as cwd — script
@@ -491,9 +496,13 @@ def main() -> int:
                     fh.write(content)
         try:
             with sink_from_env() as sink:
-                kwargs = {"plan": True, "plan_source": "nodus", "plan_names": names, "telemetry": sink}
-                if args.model:
-                    kwargs["model"] = args.model
+                kwargs = {
+                    "plan": True,
+                    "plan_source": "nodus",
+                    "plan_names": names,
+                    "telemetry": sink,
+                    "model": args.model,
+                }
                 if args.text_tools:
                     kwargs["text_tools"] = True
                 if ws_dir:

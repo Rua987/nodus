@@ -275,6 +275,20 @@ def test_chat_api_routes_gemini(monkeypatch):
     assert nb.chat_api([], "gemini:gemini-2.0-flash", None)["content"] == "ok"
 
 
+def test_hackathon_blocks_non_gcp_models(monkeypatch):
+    monkeypatch.setenv("NODUS_HACKATHON", "1")
+    with pytest.raises(RuntimeError, match="AGENTIC_CINEMA"):
+        nb.assert_hackathon_llm_model("qwen3.5:2b")
+    with pytest.raises(RuntimeError, match="AGENTIC_CINEMA"):
+        nb.chat_api([], "openrouter/x", None)
+    nb.assert_hackathon_llm_model("vertex:gemini-2.5-flash")  # no raise
+
+
+def test_hackathon_allows_gcp_when_disabled(monkeypatch):
+    monkeypatch.delenv("NODUS_HACKATHON", raising=False)
+    nb.assert_hackathon_llm_model("qwen3.5:2b")  # no raise
+
+
 # ── Backend Gemini : faux paquet google.genai ───────────────────────────────
 
 class _Fake:
